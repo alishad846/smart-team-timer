@@ -1,0 +1,10 @@
+.next
+node_modules
+.env
+.env.local
+dist
+out
+coverage
+*.log
+electron/tracker-config.json
+prisma/migrations

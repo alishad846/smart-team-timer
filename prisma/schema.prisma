@@ -1,0 +1,352 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  MANAGER
+  EMPLOYEE
+  INTERN
+}
+
+enum MemberStatus {
+  INVITED
+  ACTIVE
+  PAUSED
+  REMOVED
+}
+
+enum ConsentStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+enum ProjectStatus {
+  PLANNED
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TimeEntryStatus {
+  RUNNING
+  PAUSED
+  STOPPED
+}
+
+enum TrackingState {
+  ACTIVE
+  PAUSED
+  IDLE
+}
+
+enum NotificationKind {
+  ANNOUNCEMENT
+  REQUEST
+}
+
+enum NotificationAudience {
+  ALL
+  ADMINS
+  EMPLOYEES
+  TEAM
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id            String         @id @default(cuid())
+  authUserId    String         @unique @map("auth_user_id")
+  email         String         @unique
+  fullName      String         @map("full_name")
+  githubUsername String?       @map("github_username")
+  avatarUrl     String?        @map("avatar_url")
+  role          Role           @default(EMPLOYEE)
+  memberships   TeamMember[]
+  assignedTasks Task[]
+  timeEntries   TimeEntry[]
+  activityLogs  ActivityLog[]
+  screenshots   Screenshot[]
+  appUsages     AppUsage[]
+  websiteUsages WebsiteUsage[]
+  summaries     DailySummary[]
+  notificationsSent Notification[]
+  notificationsReviewed Notification[] @relation("NotificationReviewedBy")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Organization {
+  id            String         @id @default(cuid())
+  name          String
+  slug          String         @unique
+  description   String?        @default("")
+  members       TeamMember[]
+  teams         Team[]
+  projects      Project[]
+  timeEntries   TimeEntry[]
+  activityLogs  ActivityLog[]
+  screenshots   Screenshot[]
+  appUsages     AppUsage[]
+  websiteUsages WebsiteUsage[]
+  summaries     DailySummary[]
+  notifications Notification[]
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  @@map("organizations")
+}
+
+model Team {
+  id             String         @id @default(cuid())
+  organizationId String         @map("organization_id")
+  name           String
+  description    String?        @default("")
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members        TeamMember[]
+  projects       Project[]
+  timeEntries    TimeEntry[]
+  activityLogs   ActivityLog[]
+  screenshots    Screenshot[]
+  appUsages      AppUsage[]
+  websiteUsages  WebsiteUsage[]
+  dailySummaries DailySummary[]
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@map("teams")
+}
+
+model TeamMember {
+  id             String        @id @default(cuid())
+  organizationId String        @map("organization_id")
+  teamId         String?       @map("team_id")
+  userId         String        @map("user_id")
+  role           Role          @default(EMPLOYEE)
+  status         MemberStatus  @default(INVITED)
+  consentStatus  ConsentStatus @default(PENDING) @map("consent_status")
+  title          String?       @default("")
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team           Team?         @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  @@unique([organizationId, userId])
+  @@index([teamId])
+  @@map("team_members")
+}
+
+model Project {
+  id             String        @id @default(cuid())
+  organizationId String        @map("organization_id")
+  teamId         String?       @map("team_id")
+  ownerId        String?       @map("owner_id")
+  name           String
+  description    String?       @default("")
+  status         ProjectStatus @default(PLANNED)
+  progress       Int           @default(0)
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team           Team?         @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  tasks          Task[]
+  timeEntries    TimeEntry[]
+  notifications  Notification[]
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@map("projects")
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  projectId   String       @map("project_id")
+  assigneeId  String?      @map("assignee_id")
+  title       String
+  description String?      @default("")
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee    User?        @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  timeEntries TimeEntry[]
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@index([projectId])
+  @@map("tasks")
+}
+
+model TimeEntry {
+  id                String          @id @default(cuid())
+  userId            String          @map("user_id")
+  organizationId    String          @map("organization_id")
+  teamId            String?         @map("team_id")
+  projectId         String?         @map("project_id")
+  taskId            String?         @map("task_id")
+  status            TimeEntryStatus @default(RUNNING)
+  startedAt         DateTime        @map("started_at")
+  endedAt           DateTime?       @map("ended_at")
+  pauseStartedAt    DateTime?       @map("pause_started_at")
+  totalSeconds      Int             @default(0) @map("total_seconds")
+  productiveSeconds Int             @default(0) @map("productive_seconds")
+  idleSeconds       Int             @default(0) @map("idle_seconds")
+  note              String?         @default("")
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team              Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  project           Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  task              Task?           @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  @@index([organizationId, userId])
+  @@map("time_entries")
+}
+
+model ActivityLog {
+  id              String        @id @default(cuid())
+  userId          String        @map("user_id")
+  organizationId  String        @map("organization_id")
+  teamId          String?       @map("team_id")
+  activeApp       String        @map("active_app")
+  activeWindow    String        @default("") @map("active_window")
+  website         String        @default("")
+  keyboardPercent Int           @map("keyboard_percent")
+  mousePercent    Int           @map("mouse_percent")
+  idleSeconds     Int           @map("idle_seconds")
+  trackingState   TrackingState @default(ACTIVE) @map("tracking_state")
+  capturedAt      DateTime      @default(now()) @map("captured_at")
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team            Team?         @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  @@index([organizationId, userId])
+  @@map("activity_logs")
+}
+
+model Screenshot {
+  id             String       @id @default(cuid())
+  userId         String       @map("user_id")
+  organizationId String       @map("organization_id")
+  teamId         String?      @map("team_id")
+  imageUrl       String       @map("image_url")
+  activeApp      String       @default("") @map("active_app")
+  activeWindow   String       @default("") @map("active_window")
+  capturedAt     DateTime     @default(now()) @map("captured_at")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team           Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([organizationId, userId])
+  @@map("screenshots")
+}
+
+model AppUsage {
+  id              String       @id @default(cuid())
+  userId          String       @map("user_id")
+  organizationId  String       @map("organization_id")
+  teamId          String?      @map("team_id")
+  appName         String       @map("app_name")
+  windowTitle     String       @default("") @map("window_title")
+  durationSeconds Int          @default(0) @map("duration_seconds")
+  capturedAt      DateTime     @default(now()) @map("captured_at")
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team            Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  @@index([organizationId, userId])
+  @@map("app_usage")
+}
+
+model WebsiteUsage {
+  id              String       @id @default(cuid())
+  userId          String       @map("user_id")
+  organizationId  String       @map("organization_id")
+  teamId          String?      @map("team_id")
+  domain          String
+  url             String       @default("")
+  durationSeconds Int          @default(0) @map("duration_seconds")
+  visits          Int          @default(0)
+  capturedAt      DateTime     @default(now()) @map("captured_at")
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team            Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  @@index([organizationId, userId])
+  @@map("website_usage")
+}
+
+model DailySummary {
+  id                String       @id @default(cuid())
+  userId            String       @map("user_id")
+  organizationId    String       @map("organization_id")
+  teamId            String?      @map("team_id")
+  summaryDate       DateTime     @map("summary_date")
+  summaryText       String       @map("summary_text")
+  productivityScore Int          @map("productivity_score")
+  insightsJson      Json         @map("insights_json")
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team              Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  @@index([organizationId, userId, summaryDate])
+  @@map("daily_summaries")
+}
+
+model Notification {
+  id             String               @id @default(cuid())
+  organizationId String               @map("organization_id")
+  createdById    String?              @map("created_by_id")
+  title          String
+  message        String
+  kind           NotificationKind     @default(ANNOUNCEMENT)
+  audience       NotificationAudience @default(ALL)
+  requestProjectId String?            @map("request_project_id")
+  requestStartAt DateTime?            @map("request_start_at")
+  requestEndAt   DateTime?            @map("request_end_at")
+  requestReason  String?              @default("") @map("request_reason")
+  requestStatus  RequestStatus?       @map("request_status")
+  reviewedById   String?              @map("reviewed_by_id")
+  reviewedAt     DateTime?            @map("reviewed_at")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project        Project?             @relation(fields: [requestProjectId], references: [id], onDelete: SetNull)
+  createdBy      User?                @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  reviewedBy     User?                @relation("NotificationReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@map("notifications")
+}

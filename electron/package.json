@@ -1,0 +1,6 @@
+{
+  "name": "smartteamtimer-tracker",
+  "private": true,
+  "main": "main.js",
+  "type": "module"
+}

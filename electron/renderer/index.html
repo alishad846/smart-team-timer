@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SmartTeamTimer Tracker</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #020617;
+        --panel: rgba(15, 23, 42, 0.88);
+        --border: rgba(148, 163, 184, 0.16);
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --accent: #38bdf8;
+        --accent-2: #34d399;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 25%),
+          radial-gradient(circle at top right, rgba(52, 211, 153, 0.12), transparent 25%),
+          var(--bg);
+        color: var(--text);
+      }
+
+      .shell {
+        padding: 24px;
+      }
+
+      .panel {
+        border: 1px solid var(--border);
+        background: var(--panel);
+        backdrop-filter: blur(18px);
+        border-radius: 24px;
+        padding: 20px;
+        box-shadow: 0 22px 60px rgba(2, 6, 23, 0.45);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 1.45rem;
+      }
+
+      p {
+        line-height: 1.6;
+      }
+
+      .grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+
+      label {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      input, select {
+        width: 100%;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: rgba(15, 23, 42, 0.85);
+        color: var(--text);
+        padding: 12px 14px;
+        outline: none;
+      }
+
+      button {
+        border: 0;
+        border-radius: 14px;
+        padding: 12px 16px;
+        font-weight: 600;
+        color: #022c22;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        cursor: pointer;
+      }
+
+      .actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .status {
+        display: grid;
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        padding: 8px 12px;
+        background: rgba(56, 189, 248, 0.12);
+        border: 1px solid rgba(56, 189, 248, 0.2);
+        color: #7dd3fc;
+        font-size: 0.85rem;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .error-msg {
+        color: #ef4444;
+        font-size: 0.85rem;
+        min-height: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      window.onerror = function(msg, url, line, col, error) {
+        document.body.innerHTML += `<div style="color: red; padding: 20px; background: black; position: absolute; top: 0; left: 0; z-index: 9999;">ERROR: ${msg}<br>${error?.stack}</div>`;
+      };
+      window.addEventListener('unhandledrejection', function(event) {
+        document.body.innerHTML += `<div style="color: red; padding: 20px; background: black; position: absolute; top: 0; left: 0; z-index: 9999;">PROMISE ERROR: ${event.reason?.message}<br>${event.reason?.stack}</div>`;
+      });
+    </script>
+    <div class="shell">
+      <div class="panel">
+        <div class="pill">Background tracker</div>
+        <h1>SmartTeamTimer desktop agent</h1>
+        
+        <!-- LOGIN VIEW -->
+        <div id="loginView" class="grid hidden" style="margin-top: 16px;">
+          <p class="muted">
+            Log in to connect the tracker to your workspace.
+          </p>
+          <div class="field">
+            <label for="apiUrl">API URL</label>
+            <input id="apiUrl" type="text" placeholder="http://localhost:3000" />
+          </div>
+          <div class="field">
+            <label for="loginEmail">Email</label>
+            <input id="loginEmail" type="email" placeholder="admin@company.com" />
+          </div>
+          <div class="field">
+            <label for="loginPassword">Password</label>
+            <input id="loginPassword" type="password" placeholder="••••••••" />
+          </div>
+          <div id="loginError" class="error-msg"></div>
+          <div class="actions">
+            <button id="loginBtn">Log In</button>
+          </div>
+        </div>
+
+        <!-- TRACKER VIEW -->
+        <div id="trackerView" class="hidden">
+          <p class="muted" style="margin-top: 8px;">
+            Tracker is running in the background for activity, idle, and screenshot telemetry.
+          </p>
+          
+          <div class="actions" style="margin-top: 16px;">
+            <button id="toggle">Pause tracking</button>
+            <button id="sample">Send sample now</button>
+            <button id="logoutBtn" style="background: rgba(148, 163, 184, 0.16); color: var(--text);">Log out</button>
+          </div>
+
+          <div class="status">
+            <div>
+              <strong>Status</strong>
+              <p id="trackerState" class="muted">Loading...</p>
+            </div>
+            <div>
+              <strong>Last sync</strong>
+              <p id="lastSync" class="muted">Waiting for first upload...</p>
+            </div>
+            <div>
+              <strong>Last active app</strong>
+              <p id="lastApp" class="muted">Unknown</p>
+            </div>
+            <div>
+              <strong>Last error</strong>
+              <p id="lastError" class="muted">None</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="./renderer.js"></script>
+  </body>
+</html>
