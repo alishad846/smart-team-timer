@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
 
     const residualSeconds = computeDuration(currentEntry.updatedAt.toISOString(), endedAt.toISOString());
     const residual = splitResidualSeconds(currentEntry, residualSeconds);
-    const totalSeconds = currentEntry.totalSeconds + residual.productiveSeconds;
+    const totalSeconds = currentEntry.totalSeconds + residualSeconds;
     const productiveSeconds = currentEntry.productiveSeconds + residual.productiveSeconds;
     const entry = await prisma.timeEntry.update({
       where: { id: currentEntry.id },
@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
 
   const elapsedSeconds = computeDuration(currentEntry.updatedAt.toISOString(), endedAt.toISOString());
   const elapsed = splitResidualSeconds(currentEntry, elapsedSeconds);
-  const totalSeconds = currentEntry.totalSeconds + elapsed.productiveSeconds;
+  const totalSeconds = currentEntry.totalSeconds + elapsedSeconds;
   const productiveSeconds = currentEntry.productiveSeconds + elapsed.productiveSeconds;
   const idleSeconds = currentEntry.idleSeconds + elapsed.idleSeconds;
 

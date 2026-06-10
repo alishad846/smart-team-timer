@@ -1,6 +1,6 @@
 import { getActiveWindowState, sampleActivity, startInputHooks } from "./sensors.js";
 import { TrackerTelemetry } from "./telemetry.js";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -214,11 +214,13 @@ export class ActivityCollector {
       const filePath = path.join(captureDir, `screenshot-${Date.now()}.png`);
       const savedFile = await screenshot({ filename: filePath, format: "png" });
       const currentWindow = activeWindow ?? (await getActiveWindowState());
+      const imageBuffer = await readFile(savedFile);
+      const imageUrl = `data:image/png;base64,${imageBuffer.toString("base64")}`;
       const payload = {
         userId: this.config.userId,
         organizationId: this.config.organizationId,
         teamId: this.config.teamId || undefined,
-        imageUrl: pathToFileURL(String(savedFile)).href,
+        imageUrl: imageUrl,
         activeApp: currentWindow.app,
         activeWindow: currentWindow.title,
         capturedAt: new Date().toISOString()

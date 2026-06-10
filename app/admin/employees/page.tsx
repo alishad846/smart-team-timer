@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { InviteEmployeeForm } from "@/components/admin/admin-forms";
+import { RemoveEmployeeButton } from "@/components/admin/remove-employee-button";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -81,6 +82,7 @@ export default async function AdminEmployeesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
                   <TableHead>GitHub</TableHead>
                   <TableHead>Team</TableHead>
                   <TableHead>Consent</TableHead>
@@ -88,9 +90,10 @@ export default async function AdminEmployeesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {members.map((member) => (
+                {members.filter((m) => m.status !== "REMOVED").map((member) => (
                   <TableRow key={member.id}>
                     <TableCell className="font-medium">{member.user.fullName}</TableCell>
+                    <TableCell>{member.user.email}</TableCell>
                     <TableCell>{member.user.githubUsername ? `@${member.user.githubUsername}` : "—"}</TableCell>
                     <TableCell>{member.team?.name ?? "Unassigned"}</TableCell>
                     <TableCell>
@@ -98,10 +101,11 @@ export default async function AdminEmployeesPage() {
                         {member.consentStatus}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="space-x-2">
                       <Button asChild variant="outline" size="sm">
                         <Link href={`/admin/activity/${member.userId}`}>Open activity</Link>
                       </Button>
+                      <RemoveEmployeeButton memberId={member.id} memberName={member.user.fullName} />
                     </TableCell>
                   </TableRow>
                 ))}

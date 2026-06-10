@@ -1,8 +1,11 @@
 {
   "name": "smartteamtimer",
   "version": "0.1.0",
+  "description": "Smart Team Timer Application",
+  "author": "Your Name",
   "private": true,
   "type": "module",
+  "main": "electron/main.js",
   "engines": {
     "node": ">=20.0.0"
   },
@@ -25,7 +28,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
-    "electron": "^42.2.0",
     "get-windows": "^9.2.3",
     "lucide-react": "^0.454.0",
     "next": "^15.3.3",
@@ -43,6 +45,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
+    "electron": "^42.2.0",
     "electron-builder": "^26.8.1",
     "eslint": "^9.18.0",
     "postcss": "^8.5.1",
@@ -52,5 +55,19 @@
   },
   "optionalDependencies": {
     "iohook": "^0.9.6"
+  },
+  "build": {
+    "appId": "com.smartteamtimer.app",
+    "directories": {
+      "output": "build-out"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "dir"
+    },
+    "asar": false
   }
 }

@@ -129,12 +129,27 @@ export default async function AdminEmployeeActivityPage({
             </CardHeader>
             <CardContent className="space-y-4">
               {data.screenshots.slice(0, 6).map((shot: any) => (
-                <div key={shot.id} className="rounded-2xl border border-border bg-background/70 p-4">
-                  <div className="flex items-center justify-between gap-4">
+                <div key={shot.id} className="overflow-hidden rounded-2xl border border-border bg-background/70">
+                  <div className="flex items-center justify-between gap-4 p-4 pb-3">
                     <p className="font-medium">{format(shot.capturedAt, "h:mm a")}</p>
                     <Badge variant="secondary">{shot.activeApp || "Desktop"}</Badge>
                   </div>
-                  <p className="mt-2 text-sm text-muted-foreground">{shot.activeWindow || "No window title"}</p>
+                  {shot.imageUrl ? (
+                    <div className="relative aspect-video w-full bg-muted/50 border-y border-border/50">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={shot.imageUrl}
+                        alt={`Screenshot captured at ${format(shot.capturedAt, "h:mm a")}`}
+                        className="h-full w-full object-contain"
+                        loading="lazy"
+                      />
+                    </div>
+                  ) : null}
+                  <div className="p-4 pt-3">
+                    <p className="text-sm text-muted-foreground line-clamp-2" title={shot.activeWindow || "No window title"}>
+                      {shot.activeWindow || "No window title"}
+                    </p>
+                  </div>
                 </div>
               ))}
             </CardContent>

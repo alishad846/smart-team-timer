@@ -287,6 +287,9 @@ export function buildActivitySnapshot(
     if (dayCredits >= 3) {
       streakDays += 1;
     } else {
+      if (index === 0) {
+        continue;
+      }
       break;
     }
   }

@@ -48,7 +48,7 @@ async function loadDotEnv() {
 
 async function loadConfig() {
   const defaultConfig = {
-    apiUrl: process.env.TRACKER_API_URL ?? "http://localhost:3000",
+    apiUrl: process.env.TRACKER_API_URL ?? "https://smart-team-timer.vercel.app",
     accessToken: process.env.TRACKER_SHARED_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
     userId: process.env.TRACKER_USER_ID ?? "",
     organizationId: process.env.TRACKER_ORGANIZATION_ID ?? "",

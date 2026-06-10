@@ -11,7 +11,6 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { IDLE_THRESHOLD_MS, useIdleDetection } from "@/components/employee/use-idle-detection";
 
 type ProjectOption = {
   id: string;
@@ -79,9 +78,6 @@ export function TimerPanel({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const canTrack = consentStatus === "ACCEPTED";
-  const idleMs = useIdleDetection(canTrack && currentEntry?.status === "RUNNING");
-  const idleAccumulatedMsRef = useRef(0);
-  const idlePeriodStartedAtRef = useRef<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -109,26 +105,6 @@ export function TimerPanel({
     setCurrentEntry(initialEntry);
   }, [initialEntry?.id, initialEntry?.status, initialEntry?.startedAt, initialEntry?.updatedAt, initialEntry?.totalSeconds, initialEntry?.productiveSeconds, initialEntry?.idleSeconds, initialEntry?.projectId, initialEntry?.taskId, initialEntry?.note]);
 
-  useEffect(() => {
-    if (!currentEntry || currentEntry.status !== "RUNNING") {
-      idleAccumulatedMsRef.current = 0;
-      idlePeriodStartedAtRef.current = null;
-      return;
-    }
-
-    if (idleMs >= IDLE_THRESHOLD_MS) {
-      if (idlePeriodStartedAtRef.current === null) {
-        idlePeriodStartedAtRef.current = Date.now();
-      }
-      return;
-    }
-
-    if (idlePeriodStartedAtRef.current !== null) {
-      idleAccumulatedMsRef.current += Date.now() - idlePeriodStartedAtRef.current;
-      idlePeriodStartedAtRef.current = null;
-    }
-  }, [currentEntry?.id, currentEntry?.status, idleMs]);
-
   const filteredTasks = useMemo(
     () => tasks.filter((task) => !projectId || task.projectId === projectId),
     [projectId, tasks]
@@ -142,13 +118,10 @@ export function TimerPanel({
     if (!mounted || !now) {
       return currentEntry.totalSeconds;
     }
-    const startedAtMs = new Date(currentEntry.startedAt).getTime();
-    const ongoingIdleMs =
-      idlePeriodStartedAtRef.current === null ? 0 : Math.max(0, now - idlePeriodStartedAtRef.current);
-    const totalIdleMs = idleAccumulatedMsRef.current + ongoingIdleMs;
-    const activeElapsedMs = Math.max(0, now - startedAtMs - totalIdleMs);
+    const referenceMs = new Date(currentEntry.updatedAt).getTime();
+    const activeElapsedMs = Math.max(0, now - referenceMs);
     return currentEntry.totalSeconds + Math.floor(activeElapsedMs / 1000);
-  }, [currentEntry, mounted, now, idleMs]);
+  }, [currentEntry, mounted, now]);
 
   async function sendAction(action: "START" | "STOP" | "PAUSE" | "RESUME") {
     if ((action === "START" || action === "RESUME") && !canTrack) {
@@ -204,8 +177,6 @@ export function TimerPanel({
 
   const isRunning = currentEntry?.status === "RUNNING";
   const isPaused = currentEntry?.status === "PAUSED";
-  const idleSeconds = Math.max(0, Math.floor(idleMs / 1000));
-  const isIdleAlertActive = canTrack && isRunning && idleMs >= IDLE_THRESHOLD_MS;
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -222,10 +193,6 @@ export function TimerPanel({
           {!canTrack ? (
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600">
               Tracking is locked until you allow screenshots during work time. Please approve monitoring above before starting your timer.
-            </div>
-          ) : idleMs >= IDLE_THRESHOLD_MS ? (
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600">
-              Idle detected. Your active timer is frozen at the last active value, while idle time keeps being recorded separately.
             </div>
           ) : null}
           <CardTitle className="text-3xl md:text-4xl" suppressHydrationWarning>
@@ -310,34 +277,6 @@ export function TimerPanel({
       </Card>
 
       <div className="space-y-6">
-        <Card className={cn("border-border/70", isIdleAlertActive && "border-rose-500/40 bg-rose-500/5")}>
-          <CardHeader>
-            <CardTitle>Idle alert</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div
-              className={cn(
-                "rounded-2xl border px-4 py-4 text-sm",
-                isIdleAlertActive
-                  ? "border-rose-500/30 bg-rose-500/10 text-rose-600"
-                  : "border-border bg-background/70 text-muted-foreground"
-              )}
-            >
-              <p className="font-medium text-foreground">{isIdleAlertActive ? "Idle detected" : "No idle alert yet"}</p>
-              <p className="mt-2 leading-6">
-                {isIdleAlertActive
-                  ? `No mouse or keyboard movement for ${Math.max(1, Math.round(idleSeconds / 60))} minute(s). Your active timer is frozen and idle time is recorded separately.`
-                  : "When there is no mouse or keyboard movement for 1 minute, this box turns red and the timer freezes at the last active value."}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-              <span>Need to explain a missed start?</span>
-              <Link href="/employee/requests" className="font-medium text-foreground underline underline-offset-4">
-                Open missed timer help
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
 
         <Card className="border-border/70">
           <CardHeader>

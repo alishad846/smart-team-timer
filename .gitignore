@@ -8,3 +8,8 @@ coverage
 *.log
 electron/tracker-config.json
 prisma/migrations
+build-out
+release
+.DS_Store
+*.pem
+.vercel

@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
     await prisma.timeEntry.update({
       where: { id: activeEntry.id },
       data: {
-        totalSeconds: activeEntry.totalSeconds + productiveSeconds,
+        totalSeconds: activeEntry.totalSeconds + batchSeconds,
         productiveSeconds: activeEntry.productiveSeconds + productiveSeconds,
         idleSeconds: activeEntry.idleSeconds + idleSeconds
       }
