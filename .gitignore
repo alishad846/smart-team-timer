@@ -13,3 +13,10 @@ release
 .DS_Store
 *.pem
 .vercel
+
+# Executables and compressed archives
+*.exe
+*.zip
+*.tar.gz
+*.dmg
+*.app

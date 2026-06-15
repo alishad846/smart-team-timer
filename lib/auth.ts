@@ -1,5 +1,6 @@
 import { Role } from "@prisma/client";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { createServerSupabase } from "@/lib/supabase/server";
 
@@ -43,7 +44,7 @@ function resolveGithubUsername(user: {
   return normalized.length > 0 ? normalized : undefined;
 }
 
-export async function getCurrentUser() {
+export const getCurrentUser = cache(async function getCurrentUser() {
   const supabase = await createServerSupabase();
   const {
     data: { user }
@@ -79,7 +80,7 @@ export async function getCurrentUser() {
   });
 
   return { user, profile };
-}
+});
 
 export async function requireUser() {
   const context = await getCurrentUser();

@@ -1,4 +1,5 @@
 import { Role, type Organization, type TeamMember, type User } from "@prisma/client";
+import { cache } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -125,7 +126,7 @@ async function ensureWorkspace(profile: User) {
   };
 }
 
-export async function getWorkspaceContext(): Promise<WorkspaceContext | null> {
+export const getWorkspaceContext = cache(async function getWorkspaceContext(): Promise<WorkspaceContext | null> {
   const current = await getCurrentUser();
 
   if (!current) {
@@ -144,7 +145,7 @@ export async function getWorkspaceContext(): Promise<WorkspaceContext | null> {
     membership,
     workspaceRole: profile.role === Role.OWNER || profile.role === Role.MANAGER ? "admin" : "employee"
   };
-}
+});
 
 export async function requireWorkspaceContext() {
   const context = await getWorkspaceContext();
