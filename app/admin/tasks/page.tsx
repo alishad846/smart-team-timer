@@ -87,11 +87,6 @@ export default async function AdminTasksPage() {
         <CreateProjectForm organizationId={context.organization.id} teams={teams.map((team) => ({ id: team.id, name: team.name }))} />
         <CreateTaskForm
           projects={projects.map((project) => ({ id: project.id, name: project.name }))}
-          employees={members.map((member) => ({
-            id: member.userId,
-            name: member.user.fullName,
-            githubUsername: member.user.githubUsername
-          }))}
         />
       </div>
 

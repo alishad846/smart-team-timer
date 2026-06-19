@@ -356,11 +356,9 @@ export function CreateProjectForm({
 }
 
 export function CreateTaskForm({
-  projects,
-  employees
+  projects
 }: {
   projects: { id: string; name: string }[];
-  employees: MemberOption[];
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -368,12 +366,11 @@ export function CreateTaskForm({
   const [success, setSuccess] = useState<string | null>(null);
   const [form, setForm] = useState({
     projectId: projects[0]?.id ?? "",
-    assigneeId: employees[0]?.id ?? "",
     title: "",
     description: "",
-    status: "TODO",
     priority: "MEDIUM"
   });
+  const [file, setFile] = useState<File | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -388,32 +385,94 @@ export function CreateTaskForm({
     setSuccess(null);
 
     try {
-      const response = await fetch("/api/tasks", {
+      let tasksPayload: any[] = [];
+
+      if (file) {
+        let text: string;
+        try {
+          text = await file.text();
+        } catch {
+          // File reference became stale (e.g. after page refresh) — clear it and fall back to typed fields
+          setFile(null);
+          const fileInput = document.getElementById("taskFile") as HTMLInputElement;
+          if (fileInput) fileInput.value = "";
+
+          if (!form.title.trim()) {
+            throw new Error("The file could not be read. Please re-select it or type a task title instead.");
+          }
+          // Fall through to manual entry below
+          text = "";
+        }
+
+        if (text) {
+          const rows = parseDelimitedText(text);
+
+          if (rows.length === 0) {
+            throw new Error("File appears to be empty.");
+          }
+
+          // Check if the first row looks like a header (contains "title" somewhere)
+          const possibleHeaders = rows[0].map((h) => h.toLowerCase().replace(/[^a-z]/g, ""));
+          const hasHeader = possibleHeaders.some((h) => h.includes("title"));
+
+          if (hasHeader && rows.length < 2) {
+            throw new Error("File has a header row but no task data rows.");
+          }
+
+          if (hasHeader) {
+            // Parse with header mapping
+            const titleIdx = possibleHeaders.findIndex((h) => h.includes("title"));
+            const descIdx = possibleHeaders.findIndex((h) => h.includes("desc"));
+            const priorityIdx = possibleHeaders.findIndex((h) => h.includes("priority"));
+
+            tasksPayload = rows.slice(1).map((row) => ({
+              title: row[titleIdx] || "Untitled Task",
+              description: descIdx !== -1 ? row[descIdx] : "",
+              priority: priorityIdx !== -1 ? (row[priorityIdx] || "MEDIUM").toUpperCase() : "MEDIUM"
+            }));
+          } else {
+            // No header detected — treat each line/first-column as a task title
+            tasksPayload = rows.map((row) => ({
+              title: row[0] || "Untitled Task",
+              description: row.length > 1 ? row[1] : "",
+              priority: "MEDIUM"
+            }));
+          }
+        }
+      }
+
+      if (tasksPayload.length === 0) {
+        if (!form.title.trim()) {
+          throw new Error("Task title is required.");
+        }
+        tasksPayload = [
+          {
+            title: form.title.trim(),
+            description: form.description.trim(),
+            priority: form.priority
+          }
+        ];
+      }
+
+      const response = await fetch("/api/tasks/bulk", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          projectId: form.projectId.trim(),
-          assigneeId: form.assigneeId.trim() || undefined,
-          title: form.title.trim(),
-          description: form.description.trim(),
-          status: form.status,
-          priority: form.priority
+          projectId: form.projectId,
+          tasks: tasksPayload
         })
       });
 
-      const data = await response.json();
+      const data = (await readJsonResponse(response)) as { error?: string; createdCount?: number } | null;
       if (!response.ok) {
-        throw new Error(data.error ?? "Could not create task");
+        throw new Error(data?.error ?? "Could not create task(s)");
       }
 
-      setSuccess(`${data.task.title} created successfully`);
-      setForm((current) => ({
-        ...current,
-        title: "",
-        description: ""
-      }));
+      setSuccess(`Successfully created ${data?.createdCount ?? tasksPayload.length} task(s).`);
+      setForm((current) => ({ ...current, title: "", description: "" }));
+      setFile(null);
+      const fileInput = document.getElementById("taskFile") as HTMLInputElement;
+      if (fileInput) fileInput.value = "";
       router.refresh();
     } catch (taskError) {
       setError(taskError instanceof Error ? taskError.message : "Could not create task");
@@ -431,7 +490,7 @@ export function CreateTaskForm({
         <CardTitle>Create task</CardTitle>
       </CardHeader>
       <CardContent>
-        <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
             <Label htmlFor="taskProject">Project</Label>
             <Select
@@ -448,23 +507,37 @@ export function CreateTaskForm({
               ))}
             </Select>
           </div>
+
           <div className="space-y-2">
-            <Label htmlFor="taskAssignee">Assignee</Label>
-            <Select
-              id="taskAssignee"
-              value={form.assigneeId}
-              onChange={(event) => setForm((current) => ({ ...current, assigneeId: event.target.value }))}
-              disabled={employees.length === 0}
-            >
-              {employees.length === 0 ? <option value="">No employee yet</option> : null}
-              {employees.map((employee) => (
-                <option key={employee.id} value={employee.id}>
-                  {employee.name}
-                  {employee.githubUsername ? ` @${employee.githubUsername}` : ""}
-                </option>
-              ))}
-            </Select>
+            <Label htmlFor="taskFile">Upload file of tasks (optional)</Label>
+            <div className="flex gap-2">
+              <Input
+                id="taskFile"
+                type="file"
+                accept=".csv,.txt"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                disabled={loading || projects.length === 0}
+                className="flex-1"
+              />
+              {file ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setFile(null);
+                    const fileInput = document.getElementById("taskFile") as HTMLInputElement;
+                    if (fileInput) fileInput.value = "";
+                  }}
+                >
+                  Clear
+                </Button>
+              ) : null}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Upload a .csv or .txt with a &quot;Title&quot; column. If a file is selected, it will be used instead of the fields below.
+            </p>
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="taskTitle">Task title</Label>
             <Input
@@ -472,9 +545,20 @@ export function CreateTaskForm({
               value={form.title}
               onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
               placeholder="Prepare release notes"
-              required
             />
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="taskDescription">Description</Label>
+            <Textarea
+              id="taskDescription"
+              value={form.description}
+              onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+              placeholder="Scope, checklist, and acceptance criteria."
+              rows={3}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="taskPriority">Priority</Label>
             <Select
@@ -487,46 +571,21 @@ export function CreateTaskForm({
               <option value="HIGH">High</option>
             </Select>
           </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="taskDescription">Description</Label>
-            <Textarea
-              id="taskDescription"
-              value={form.description}
-              onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-              placeholder="Scope, checklist, and acceptance criteria."
-              rows={4}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="taskStatus">Status</Label>
-            <Select
-              id="taskStatus"
-              value={form.status}
-              onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}
-            >
-              <option value="TODO">Todo</option>
-              <option value="IN_PROGRESS">In progress</option>
-              <option value="REVIEW">Review</option>
-              <option value="DONE">Done</option>
-            </Select>
-          </div>
-          <div className="md:col-span-2">
-            {error ? (
-              <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {error}
-              </div>
-            ) : null}
-            {success ? (
-              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-600">
-                {success}
-              </div>
-            ) : null}
-          </div>
-          <div className="md:col-span-2">
-            <Button type="submit" disabled={loading || projects.length === 0} className="w-full">
-              {loading ? "Creating..." : "Create task"}
-            </Button>
-          </div>
+
+          {error ? (
+            <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {error}
+            </div>
+          ) : null}
+          {success ? (
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-600">
+              {success}
+            </div>
+          ) : null}
+
+          <Button type="submit" disabled={loading || projects.length === 0} className="w-full">
+            {loading ? "Creating..." : "Create task(s)"}
+          </Button>
         </form>
       </CardContent>
     </Card>
@@ -666,28 +725,31 @@ export function AssignWorkForm({ employees, tasks }: { employees: MemberOption[]
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    employeeId: employees[0]?.id ?? "",
-    taskId: tasks[0]?.id ?? ""
-  });
+  const [taskId, setTaskId] = useState(tasks[0]?.id ?? "");
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
 
   useEffect(() => {
-    if (employees.length > 0 && !employees.some((employee) => employee.id === form.employeeId)) {
-      setForm((current) => ({ ...current, employeeId: employees[0].id }));
+    if (tasks.length > 0 && !tasks.some((task) => task.id === taskId)) {
+      setTaskId(tasks[0].id);
     }
-  }, [employees, form.employeeId]);
+  }, [tasks, taskId]);
 
-  useEffect(() => {
-    if (tasks.length > 0 && !tasks.some((task) => task.id === form.taskId)) {
-      setForm((current) => ({ ...current, taskId: tasks[0].id }));
-    }
-  }, [tasks, form.taskId]);
+  function toggleEmployee(id: string) {
+    setSelectedEmployeeIds((current) =>
+      current.includes(id) ? current.filter((i) => i !== id) : [...current, id]
+    );
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (tasks.length === 0) {
-      setError("Create a task first, then assign it to an employee.");
+      setError("Create a task first, then assign it to employees.");
+      return;
+    }
+
+    if (selectedEmployeeIds.length === 0) {
+      setError("Select at least one employee to assign the task to.");
       return;
     }
 
@@ -696,17 +758,13 @@ export function AssignWorkForm({ employees, tasks }: { employees: MemberOption[]
     setSuccess(null);
 
     try {
-      const payload = {
-        employeeId: form.employeeId.trim(),
-        taskId: form.taskId.trim()
-      };
-
       const response = await fetch("/api/admin/assignments", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskId: taskId.trim(),
+          employeeIds: selectedEmployeeIds
+        })
       });
 
       const data = await response.json();
@@ -714,7 +772,8 @@ export function AssignWorkForm({ employees, tasks }: { employees: MemberOption[]
         throw new Error(data.error ?? "Could not assign task");
       }
 
-      setSuccess(`${data.employee.fullName} assigned to ${data.task.title}`);
+      setSuccess(`Task assigned to ${data.assignedCount} employee(s) successfully.`);
+      setSelectedEmployeeIds([]);
       router.refresh();
     } catch (assignError) {
       setError(assignError instanceof Error ? assignError.message : "Could not assign task");
@@ -729,66 +788,114 @@ export function AssignWorkForm({ employees, tasks }: { employees: MemberOption[]
         <Badge variant="secondary" className="w-fit">
           Work assignment
         </Badge>
-        <CardTitle>Assign a task to an employee</CardTitle>
+        <CardTitle>Assign task to employees</CardTitle>
       </CardHeader>
       <CardContent>
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form className="grid gap-6 md:grid-cols-2" onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="assignTaskId">Task</Label>
+              <Select
+                id="assignTaskId"
+                value={taskId}
+                onChange={(event) => setTaskId(event.target.value)}
+                disabled={tasks.length === 0}
+              >
+                {tasks.length === 0 ? <option value="">No task available</option> : null}
+                {tasks.map((task) => (
+                  <option key={task.id} value={task.id}>
+                    {task.projectName} – {task.title}
+                  </option>
+                ))}
+              </Select>
+              {tasks.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Create a task first. Once a task exists, you can assign it here.
+                </p>
+              ) : null}
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="employeeId">Employee</Label>
-            <Select
-              id="employeeId"
-              value={form.employeeId}
-              onChange={(event) => setForm((current) => ({ ...current, employeeId: event.target.value }))}
-              disabled={employees.length === 0}
-            >
-              {employees.length === 0 ? <option value="">No employee available</option> : null}
+            <Label>Select employees</Label>
+            <div className="h-[14rem] overflow-y-auto rounded-md border border-border bg-background p-2 space-y-1">
+              {employees.length === 0 ? (
+                <p className="p-2 text-sm text-muted-foreground">No employees available</p>
+              ) : null}
               {employees.map((employee) => (
-                <option key={employee.id} value={employee.id}>
-                  {employee.name}
-                  {employee.githubUsername ? ` @${employee.githubUsername}` : ""}
-                </option>
+                <label
+                  key={employee.id}
+                  className="flex cursor-pointer items-center gap-3 rounded px-2 py-2 hover:bg-muted/50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedEmployeeIds.includes(employee.id)}
+                    onChange={() => toggleEmployee(employee.id)}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  <span className="text-sm">
+                    {employee.name}
+                    {employee.githubUsername ? ` @${employee.githubUsername}` : ""}
+                  </span>
+                </label>
               ))}
-            </Select>
+            </div>
             <p className="text-xs text-muted-foreground">
-              Pick a person from the workspace list instead of typing an email.
+              A copy of the task is created for each selected employee.
             </p>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="taskId">Task</Label>
-            <Select
-              id="taskId"
-              value={form.taskId}
-              onChange={(event) => setForm((current) => ({ ...current, taskId: event.target.value }))}
-              disabled={tasks.length === 0}
-            >
-              {tasks.length === 0 ? <option value="">No task available</option> : null}
-              {tasks.map((task) => (
-                <option key={task.id} value={task.id}>
-                  {task.projectName} - {task.title}
-                </option>
-              ))}
-            </Select>
-            {tasks.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                Create a task in Projects first. Once a task exists, you can assign it here.
-              </p>
+
+          <div className="md:col-span-2">
+            {error ? (
+              <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {error}
+              </div>
+            ) : null}
+            {success ? (
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-600">
+                {success}
+              </div>
             ) : null}
           </div>
-          {error ? (
-            <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              {error}
-            </div>
-          ) : null}
-          {success ? (
-            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-600">
-              {success}
-            </div>
-          ) : null}
-          <Button type="submit" disabled={loading || tasks.length === 0 || employees.length === 0} className="w-full">
-            {loading ? "Assigning..." : "Assign task"}
-          </Button>
+          <div className="md:col-span-2">
+            <Button type="submit" disabled={loading || tasks.length === 0 || employees.length === 0} className="w-full">
+              {loading ? "Assigning..." : `Assign to ${selectedEmployeeIds.length} employee(s)`}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>
   );
+}
+
+function parseDelimitedText(text: string) {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
+  if (lines.length === 0) return [];
+
+  const delimiter = lines[0].includes("\t") ? "\t" : ",";
+  
+  return lines.map((line) => {
+    const row: string[] = [];
+    let currentCell = "";
+    let insideQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        if (insideQuotes && line[i + 1] === '"') {
+          currentCell += '"';
+          i++;
+        } else {
+          insideQuotes = !insideQuotes;
+        }
+      } else if (char === delimiter && !insideQuotes) {
+        row.push(currentCell.trim());
+        currentCell = "";
+      } else {
+        currentCell += char;
+      }
+    }
+    row.push(currentCell.trim());
+    return row;
+  });
 }

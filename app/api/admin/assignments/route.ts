@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { jsonWithCookies } from "@/lib/http";
-import { assignmentSchema } from "@/lib/validators";
 import { getWorkspaceContext } from "@/lib/workspace";
+import { z } from "zod";
+
+const assignmentSchema = z.object({
+  taskId: z.string().min(1),
+  employeeIds: z.array(z.string().min(1)).min(1)
+});
 
 export async function POST(request: NextRequest) {
   const response = NextResponse.next();
@@ -20,70 +25,57 @@ export async function POST(request: NextRequest) {
   const parsed = assignmentSchema.safeParse(body);
 
   if (!parsed.success) {
-    const validationMessage = Object.values(parsed.error.flatten().fieldErrors)
-      .flat()
-      .filter(Boolean)
-      .join(" ");
-
     return jsonWithCookies(
       response,
-      { error: validationMessage || "Invalid payload", issues: parsed.error.flatten() },
+      { error: "Select a task and at least one employee." },
       { status: 400 }
     );
   }
 
-  if (!parsed.data.employeeId && !parsed.data.employeeEmail) {
-    return jsonWithCookies(response, { error: "Select an employee to assign the task." }, { status: 400 });
-  }
+  const { taskId, employeeIds } = parsed.data;
 
-  const employee = await prisma.user.findFirst({
+  // Find the source task (must belong to this org)
+  const sourceTask = await prisma.task.findFirst({
     where: {
-      ...(parsed.data.employeeId
-        ? {
-            id: parsed.data.employeeId
-          }
-        : {
-            email: parsed.data.employeeEmail
-          }),
-      memberships: {
-        some: {
-          organizationId: context.organization.id
-        }
-      }
-    }
-  });
-
-  if (!employee) {
-    return jsonWithCookies(response, { error: "Employee not found in this workspace" }, { status: 404 });
-  }
-
-  const task = await prisma.task.findFirst({
-    where: {
-      id: parsed.data.taskId,
+      id: taskId,
       project: {
         organizationId: context.organization.id
       }
-    },
-    include: {
-      project: true,
-      assignee: true
     }
   });
 
-  if (!task) {
+  if (!sourceTask) {
     return jsonWithCookies(response, { error: "Task not found" }, { status: 404 });
   }
 
-  const updatedTask = await prisma.task.update({
-    where: { id: task.id },
-    data: {
-      assigneeId: employee.id
-    },
-    include: {
-      project: true,
-      assignee: true
+  // Validate all employee IDs belong to this org
+  const members = await prisma.teamMember.findMany({
+    where: {
+      organizationId: context.organization.id,
+      userId: { in: employeeIds }
     }
   });
 
-  return jsonWithCookies(response, { task: updatedTask, employee }, { status: 200 });
+  const validUserIds = new Set(members.map((m) => m.userId));
+  const filteredIds = employeeIds.filter((id) => validUserIds.has(id));
+
+  if (filteredIds.length === 0) {
+    return jsonWithCookies(response, { error: "No valid employees found in this workspace." }, { status: 400 });
+  }
+
+  // Create a copy of the task for each selected employee
+  const tasksToCreate = filteredIds.map((userId) => ({
+    projectId: sourceTask.projectId,
+    title: sourceTask.title,
+    description: sourceTask.description,
+    priority: sourceTask.priority,
+    status: "TODO" as const,
+    assigneeId: userId
+  }));
+
+  const result = await prisma.task.createMany({
+    data: tasksToCreate
+  });
+
+  return jsonWithCookies(response, { assignedCount: result.count }, { status: 200 });
 }

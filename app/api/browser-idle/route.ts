@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
   const updatedEntry = await prisma.timeEntry.update({
     where: { id: activeEntry.id },
     data: {
+      totalSeconds: activeEntry.totalSeconds + idleSeconds,
       idleSeconds: activeEntry.idleSeconds + idleSeconds
     }
   });

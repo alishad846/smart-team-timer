@@ -9,6 +9,7 @@ import { TimerPanel } from "@/components/employee/timer-panel";
 import { TrackingConsentCard } from "@/components/employee/tracking-consent-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AssignedTasksList } from "@/components/employee/assigned-tasks-list";
 import { formatDuration, formatPercent } from "@/lib/utils";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { loadEmployeeDashboardData } from "@/lib/employee-dashboard";
@@ -32,6 +33,8 @@ export default async function EmployeeWorkspacePage() {
 
   const todayStart = startOfDay(new Date());
   const todayEntries = data.timeEntries.filter((entry) => entry.startedAt >= todayStart);
+  const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
+  const recentEntries = data.timeEntries.filter((entry) => entry.startedAt >= cutoff);
   const todayLogs = data.activityLogs.filter((log) => log.capturedAt >= todayStart);
   const todaySnapshot = buildActivitySnapshot(todayEntries, "daily", new Date());
   const streakSnapshot = buildActivitySnapshot(data.timeEntries, "weekly", new Date());
@@ -79,7 +82,7 @@ export default async function EmployeeWorkspacePage() {
 
       <section>
         <ActivityTimeline
-          entries={todayEntries}
+          entries={recentEntries}
           title="Today&apos;s 24-hour line"
           subtitle="A flat 24-hour timeline showing when the employee was active today."
         />
@@ -117,29 +120,14 @@ export default async function EmployeeWorkspacePage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <Card className="border-border/70">
-          <CardHeader>
-            <CardTitle>Assigned tasks</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {data.assignedTasks.length === 0 ? (
-              <div className="rounded-2xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-                No tasks have been assigned to your email yet.
-              </div>
-            ) : null}
-            {data.assignedTasks.slice(0, 6).map((task) => (
-              <div key={task.id} className="rounded-2xl border border-border bg-muted/30 p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-medium">{task.title}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">{task.projectName}</p>
-                  </div>
-                  <Badge variant="secondary">{task.status}</Badge>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <AssignedTasksList
+          tasks={data.assignedTasks.map((task) => ({
+            id: task.id,
+            title: task.title,
+            projectName: task.projectName,
+            status: task.status
+          }))}
+        />
 
         <Card className="border-border/70">
           <CardHeader>

@@ -1,5 +1,4 @@
 import { format } from "date-fns";
-import { startOfDay } from "date-fns";
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ActivityTimeline } from "@/components/employee/activity-timeline";
@@ -25,8 +24,9 @@ export default async function EmployeeActivityPage() {
     organizationId: context.organization.id,
     userId: context.profile.id
   });
-  const todayStart = startOfDay(new Date());
-  const todayEntries = data.timeEntries.filter((entry) => entry.startedAt >= todayStart);
+  // Provide the last 48 hours of entries so the client can filter based on local browser time
+  const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
+  const recentEntries = data.timeEntries.filter((entry) => entry.startedAt >= cutoff);
 
   return (
     <div className="space-y-8">
@@ -41,7 +41,7 @@ export default async function EmployeeActivityPage() {
       />
 
       <ActivityTimeline
-        entries={todayEntries}
+        entries={recentEntries}
         title="Today&apos;s activity line"
         subtitle="A 24-hour view of when the user was active, paused, or idle."
       />
