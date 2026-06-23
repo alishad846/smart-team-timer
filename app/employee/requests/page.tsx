@@ -8,7 +8,8 @@ import { NotificationSeenMarker } from "@/components/dashboard/notification-seen
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getWorkspaceContext } from "@/lib/workspace";
-import { loadEmployeeDashboardData } from "@/lib/employee-dashboard";
+import { prisma } from "@/lib/prisma";
+import { listNotifications } from "@/lib/notifications";
 
 export default async function EmployeeRequestsPage() {
   const context = await getWorkspaceContext();
@@ -21,11 +22,36 @@ export default async function EmployeeRequestsPage() {
     redirect("/admin");
   }
 
-  const data = await loadEmployeeDashboardData({
-    organizationId: context.organization.id,
-    userId: context.profile.id
-  });
-  const latestNotificationCreatedAt = data.notifications[0]?.createdAt.toISOString() ?? null;
+  const [projects, managers, activeEntry, notifications] = await Promise.all([
+    prisma.project.findMany({
+      where: { organizationId: context.organization.id },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, name: true }
+    }),
+    prisma.teamMember.findMany({
+      where: {
+        organizationId: context.organization.id,
+        role: { in: ["OWNER", "MANAGER"] }
+      },
+      include: {
+        user: true
+      }
+    }),
+    prisma.timeEntry.findFirst({
+      where: {
+        organizationId: context.organization.id,
+        userId: context.profile.id,
+        status: { in: ["RUNNING", "PAUSED"] }
+      },
+      select: {
+        projectId: true
+      }
+    }),
+    listNotifications(context.organization.id, 50)
+  ]);
+
+  const teamLeads = managers.map((m) => ({ id: m.user.id, fullName: m.user.fullName }));
+  const latestNotificationCreatedAt = notifications[0]?.createdAt.toISOString() ?? null;
 
   return (
     <div className="space-y-8">
@@ -40,20 +66,24 @@ export default async function EmployeeRequestsPage() {
 
       <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <div className="space-y-6">
-          <RequestFormSwitcher projects={data.projects} teamLeads={data.teamLeads} defaultProjectId={data.activeEntry?.projectId ?? ""} />
+          <RequestFormSwitcher
+            projects={projects}
+            teamLeads={teamLeads}
+            defaultProjectId={activeEntry?.projectId ?? ""}
+          />
 
           <Card className="border-border/70">
             <CardHeader>
               <CardTitle>Your recent requests</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {data.notifications.filter((item) => item.kind === "REQUEST" && item.createdById === context.profile.id).length ===
+              {notifications.filter((item) => item.kind === "REQUEST" && item.createdById === context.profile.id).length ===
               0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
                   No correction requests submitted yet.
                 </div>
               ) : null}
-              {data.notifications
+              {notifications
                 .filter((item) => item.kind === "REQUEST" && item.createdById === context.profile.id)
                 .slice(0, 6)
                 .map((item) => (
@@ -87,13 +117,13 @@ export default async function EmployeeRequestsPage() {
               <CardTitle>Approved Leaves & Reasons</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {data.notifications.filter((item) => item.kind === "REQUEST" && item.title.toLowerCase().includes("leave") && item.requestStatus === "APPROVED" && item.createdById === context.profile.id).length ===
+              {notifications.filter((item) => item.kind === "REQUEST" && item.title.toLowerCase().includes("leave") && item.requestStatus === "APPROVED" && item.createdById === context.profile.id).length ===
               0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
                   No approved leaves recorded.
                 </div>
               ) : null}
-              {data.notifications
+              {notifications
                 .filter((item) => item.kind === "REQUEST" && item.title.toLowerCase().includes("leave") && item.requestStatus === "APPROVED" && item.createdById === context.profile.id)
                 .map((item) => (
                   <div key={item.id} className="rounded-2xl border border-border bg-muted/30 p-4">
@@ -124,7 +154,7 @@ export default async function EmployeeRequestsPage() {
             <CardTitle>Admin updates</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {data.notifications
+            {notifications
               .filter((item) => item.kind === "ANNOUNCEMENT")
               .slice(0, 8)
               .map((item) => (
