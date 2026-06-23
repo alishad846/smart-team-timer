@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { prisma } from "@/lib/prisma";
 import { listNotifications } from "@/lib/notifications";
+import { cn } from "@/lib/utils";
 
 export default async function EmployeeRequestsPage() {
   const context = await getWorkspaceContext();
@@ -47,7 +48,7 @@ export default async function EmployeeRequestsPage() {
         projectId: true
       }
     }),
-    listNotifications(context.organization.id, 50)
+    listNotifications(context.organization.id, 50, context.profile.id)
   ]);
 
   const memberWithTeam = await prisma.teamMember.findUnique({
@@ -165,29 +166,52 @@ export default async function EmployeeRequestsPage() {
 
         <Card className="border-border/70">
           <CardHeader>
-            <CardTitle>Admin updates</CardTitle>
+            <CardTitle>Inbox & Activity Updates</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {notifications
               .filter((item) => item.kind === "ANNOUNCEMENT")
               .slice(0, 8)
-              .map((item) => (
-                <div key={item.id} className="rounded-2xl border border-border bg-muted/30 p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="font-medium">{item.title}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {item.createdByName ?? "Admin"} - {format(item.createdAt, "MMM d, h:mm a")}
-                      </p>
+              .map((item) => {
+                const isApproved = item.title.toLowerCase().includes("approved");
+                const isRejected = item.title.toLowerCase().includes("rejected");
+
+                return (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      "rounded-2xl border p-4 transition-all duration-300 shadow-sm",
+                      isApproved
+                        ? "border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 text-emerald-950 dark:text-emerald-50"
+                        : isRejected
+                          ? "border-rose-500/20 bg-rose-500/5 dark:bg-rose-500/10 text-rose-950 dark:text-rose-50"
+                          : "border-border bg-muted/30"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="font-semibold text-sm leading-none tracking-tight">{item.title}</p>
+                        <p className="mt-1.5 text-xs text-muted-foreground">
+                          {item.createdByName ?? "Admin"} - {format(item.createdAt, "MMM d, h:mm a")}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isApproved ? (
+                          <Badge variant="success">Approved</Badge>
+                        ) : isRejected ? (
+                          <Badge variant="warning">Rejected</Badge>
+                        ) : (
+                          <>
+                            <Badge variant="secondary">{item.kind}</Badge>
+                            <Badge variant="outline">{item.audience}</Badge>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <Badge variant="secondary">{item.kind}</Badge>
-                      <Badge variant="outline">{item.audience}</Badge>
-                    </div>
+                    <p className="mt-3 text-sm text-muted-foreground">{item.message}</p>
                   </div>
-                  <p className="mt-3 text-sm text-muted-foreground">{item.message}</p>
-                </div>
-              ))}
+                );
+              })}
           </CardContent>
         </Card>
       </section>

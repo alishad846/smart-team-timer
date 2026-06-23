@@ -13,7 +13,11 @@ export async function GET() {
       return jsonWithCookies(response, { error: "Unauthorized" }, { status: 401 });
     }
 
-    const notifications = await listNotifications(context.organization.id, 50);
+    const notifications = await listNotifications(
+      context.organization.id,
+      50,
+      context.workspaceRole !== "admin" ? context.profile.id : undefined
+    );
 
     return jsonWithCookies(response, { notifications });
   } catch (error) {

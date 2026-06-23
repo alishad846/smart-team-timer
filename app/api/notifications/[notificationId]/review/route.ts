@@ -53,28 +53,41 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
 
     if (action === "REJECT") {
-      await prisma.$executeRaw(Prisma.sql`
-        update notifications
-        set request_status = ${"REJECTED"}::"RequestStatus",
-            reviewed_by_id = ${context.profile.id},
-            reviewed_at = now()
-        where id = ${notification.id}
-          and organization_id = ${context.organization.id}
-      `);
+      await prisma.notification.update({
+        where: { id: notification.id },
+        data: {
+          requestStatus: "REJECTED",
+          reviewedById: context.profile.id,
+          reviewedAt: new Date()
+        }
+      });
 
-      if (isLeaveRequest && notification.createdById && notification.requestStartAt && notification.requestEndAt) {
-        const leaveRange = isSameDay(notification.requestStartAt, notification.requestEndAt)
-          ? format(notification.requestStartAt, "MMM d, yyyy")
-          : `${format(notification.requestStartAt, "MMM d, yyyy")} to ${format(notification.requestEndAt, "MMM d, yyyy")}`;
+      if (notification.createdById) {
+        if (isLeaveRequest && notification.requestStartAt && notification.requestEndAt) {
+          const leaveRange = isSameDay(notification.requestStartAt, notification.requestEndAt)
+            ? format(notification.requestStartAt, "MMM d, yyyy")
+            : `${format(notification.requestStartAt, "MMM d, yyyy")} to ${format(notification.requestEndAt, "MMM d, yyyy")}`;
 
-        await createNotification({
-          organizationId: context.organization.id,
-          createdById: context.profile.id,
-          title: "Leave rejected",
-          message: `Your leave request for ${leaveRange} was rejected.`,
-          kind: "ANNOUNCEMENT",
-          audience: "ALL"
-        });
+          await createNotification({
+            organizationId: context.organization.id,
+            createdById: context.profile.id,
+            recipientUserId: notification.createdById,
+            title: "Leave rejected",
+            message: `Your leave request for ${leaveRange} was rejected.`,
+            kind: "ANNOUNCEMENT",
+            audience: "EMPLOYEES"
+          });
+        } else {
+          await createNotification({
+            organizationId: context.organization.id,
+            createdById: context.profile.id,
+            recipientUserId: notification.createdById,
+            title: "Time correction rejected",
+            message: `Your time correction request for "${notification.requestProjectName ?? "Project"}" was rejected.`,
+            kind: "ANNOUNCEMENT",
+            audience: "EMPLOYEES"
+          });
+        }
       }
 
       const updated = await fetchNotificationById(context.organization.id, notification.id);
@@ -108,14 +121,14 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     if (isLeaveRequest) {
       // Leave request approval: just update the request status, do not create a time entry (stays real).
-      await prisma.$executeRaw(Prisma.sql`
-        update notifications
-        set request_status = ${"APPROVED"}::"RequestStatus",
-            reviewed_by_id = ${context.profile.id},
-            reviewed_at = now()
-        where id = ${notification.id}
-          and organization_id = ${context.organization.id}
-      `);
+      await prisma.notification.update({
+        where: { id: notification.id },
+        data: {
+          requestStatus: "APPROVED",
+          reviewedById: context.profile.id,
+          reviewedAt: new Date()
+        }
+      });
 
       if (notification.createdById) {
         const leaveRange = isSameDay(notification.requestStartAt, notification.requestEndAt)
@@ -125,10 +138,11 @@ export async function POST(request: NextRequest, { params }: Params) {
         await createNotification({
           organizationId: context.organization.id,
           createdById: context.profile.id,
+          recipientUserId: notification.createdById,
           title: "Leave approved",
           message: `Your leave request for ${leaveRange} was approved.`,
           kind: "ANNOUNCEMENT",
-          audience: "ALL"
+          audience: "EMPLOYEES"
         });
       }
     } else {
@@ -157,14 +171,14 @@ export async function POST(request: NextRequest, { params }: Params) {
           : null;
 
       await prisma.$transaction(async (tx) => {
-        await tx.$executeRaw(Prisma.sql`
-          update notifications
-          set request_status = ${"APPROVED"}::"RequestStatus",
-              reviewed_by_id = ${context.profile.id},
-              reviewed_at = now()
-          where id = ${notification.id}
-            and organization_id = ${context.organization.id}
-        `);
+        await tx.notification.update({
+          where: { id: notification.id },
+          data: {
+            requestStatus: "APPROVED",
+            reviewedById: context.profile.id,
+            reviewedAt: new Date()
+          }
+        });
 
         await tx.timeEntry.create({
           data: {
@@ -183,6 +197,18 @@ export async function POST(request: NextRequest, { params }: Params) {
           }
         });
       });
+
+      if (notification.createdById) {
+        await createNotification({
+          organizationId: context.organization.id,
+          createdById: context.profile.id,
+          recipientUserId: notification.createdById,
+          title: "Time correction approved",
+          message: `Your time correction request for "${notification.requestProjectName ?? "Project"}" was approved.`,
+          kind: "ANNOUNCEMENT",
+          audience: "EMPLOYEES"
+        });
+      }
     }
 
     const updatedRequest = await fetchNotificationById(context.organization.id, notification.id);
