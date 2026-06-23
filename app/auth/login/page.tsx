@@ -1,7 +1,14 @@
 import { Suspense } from "react";
 import { AuthForm } from "@/components/auth/auth-form";
+import { getCurrentUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const current = await getCurrentUser();
+  if (current) {
+    redirect("/dashboard");
+  }
+
   return (
     <main className="grid min-h-screen place-items-center px-6 py-12">
       <Suspense
