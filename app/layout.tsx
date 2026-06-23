@@ -4,7 +4,12 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "SmartTeamTimer",
-  description: "Modern productivity tracking for remote teams, interns, and managers."
+  description: "Modern productivity tracking for remote teams, interns, and managers.",
+  icons: {
+    icon: "/icon.png",
+    shortcut: "/favicon.ico",
+    apple: "/icon.png",
+  }
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
