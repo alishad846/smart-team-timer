@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { CreateProjectForm, CreateTaskForm, AssignWorkForm } from "@/components/admin/admin-forms";
+import { ProjectsBoard } from "@/components/admin/projects-board";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,13 +91,24 @@ export default async function AdminTasksPage() {
         />
       </div>
 
+      <ProjectsBoard
+        initialProjects={projects.map((p) => ({
+          id: p.id,
+          name: p.name,
+          status: p.status,
+          teamId: p.teamId,
+          team: p.team ? { id: p.team.id, name: p.team.name } : null
+        }))}
+        teams={teams.map((t) => ({ id: t.id, name: t.name }))}
+      />
+
       <AssignWorkForm
         employees={members.map((member) => ({
           id: member.userId,
           name: member.user.fullName,
           githubUsername: member.user.githubUsername
         }))}
-        tasks={tasks.map((task) => ({
+        tasks={tasks.filter((task) => !task.assigneeId).map((task) => ({
           id: task.id,
           title: task.title,
           projectName: task.project?.name ?? "No project"

@@ -4,14 +4,14 @@ import { requireRouteUser } from "@/lib/auth-route";
 import { jsonWithCookies } from "@/lib/http";
 import { z } from "zod";
 
-const teamUpdateSchema = z.object({
+const projectUpdateSchema = z.object({
+  teamId: z.string().nullable().optional(),
   name: z.string().min(2).optional(),
-  description: z.string().optional(),
-  leaderId: z.string().nullable().optional()
+  status: z.enum(["PLANNED", "ACTIVE", "ON_HOLD", "COMPLETED"]).optional()
 });
 
 type Params = {
-  params: Promise<{ teamId: string }>;
+  params: Promise<{ projectId: string }>;
 };
 
 export async function PATCH(request: NextRequest, { params }: Params) {
@@ -22,14 +22,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return jsonWithCookies(response, { error: "Unauthorized" }, { status: 401 });
   }
 
-  const { teamId } = await params;
+  if (context.profile.role !== "OWNER" && context.profile.role !== "MANAGER") {
+    return jsonWithCookies(response, { error: "Forbidden" }, { status: 403 });
+  }
+
+  const { projectId } = await params;
   const body = await request.json();
-  const parsed = teamUpdateSchema.safeParse(body);
+  const parsed = projectUpdateSchema.safeParse(body);
 
   if (!parsed.success) {
     return jsonWithCookies(response, { error: "Invalid payload", issues: parsed.error.flatten() }, { status: 400 });
   }
 
+  // Find membership to get organization
   const membership = await prisma.teamMember.findFirst({
     where: {
       userId: context.profile.id,
@@ -41,30 +46,23 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return jsonWithCookies(response, { error: "No organization found" }, { status: 404 });
   }
 
-  // Verify the team belongs to the organization
-  const existingTeam = await prisma.team.findFirst({
+  const existingProject = await prisma.project.findFirst({
     where: {
-      id: teamId,
+      id: projectId,
       organizationId: membership.organizationId
     }
   });
 
-  if (!existingTeam) {
-    return jsonWithCookies(response, { error: "Team not found" }, { status: 404 });
+  if (!existingProject) {
+    return jsonWithCookies(response, { error: "Project not found" }, { status: 404 });
   }
 
-  const updatedTeam = await prisma.team.update({
-    where: { id: teamId },
-    data: parsed.data,
-    include: {
-      leader: true,
-      members: {
-        include: {
-          user: true
-        }
-      }
+  const updatedProject = await prisma.project.update({
+    where: { id: projectId },
+    data: {
+      teamId: parsed.data.teamId
     }
   });
 
-  return jsonWithCookies(response, { team: updatedTeam });
+  return jsonWithCookies(response, { project: updatedProject });
 }

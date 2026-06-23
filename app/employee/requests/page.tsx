@@ -50,6 +50,19 @@ export default async function EmployeeRequestsPage() {
     listNotifications(context.organization.id, 50)
   ]);
 
+  const memberWithTeam = await prisma.teamMember.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: context.organization.id,
+        userId: context.profile.id
+      }
+    },
+    include: {
+      team: true
+    }
+  });
+  const teamName = memberWithTeam?.team?.name ?? "Unassigned";
+
   const teamLeads = managers.map((m) => ({ id: m.user.id, fullName: m.user.fullName }));
   const latestNotificationCreatedAt = notifications[0]?.createdAt.toISOString() ?? null;
 
@@ -70,6 +83,7 @@ export default async function EmployeeRequestsPage() {
             projects={projects}
             teamLeads={teamLeads}
             defaultProjectId={activeEntry?.projectId ?? ""}
+            teamName={teamName}
           />
 
           <Card className="border-border/70">

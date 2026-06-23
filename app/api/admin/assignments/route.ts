@@ -63,19 +63,49 @@ export async function POST(request: NextRequest) {
     return jsonWithCookies(response, { error: "No valid employees found in this workspace." }, { status: 400 });
   }
 
-  // Create a copy of the task for each selected employee
-  const tasksToCreate = filteredIds.map((userId) => ({
-    projectId: sourceTask.projectId,
-    title: sourceTask.title,
-    description: sourceTask.description,
-    priority: sourceTask.priority,
-    status: "TODO" as const,
-    assigneeId: userId
-  }));
+  let assignedCount = 0;
 
-  const result = await prisma.task.createMany({
-    data: tasksToCreate
-  });
+  if (!sourceTask.assigneeId) {
+    // If the source task is unassigned, update it directly for the first employee
+    const firstUserId = filteredIds[0];
+    await prisma.task.update({
+      where: { id: sourceTask.id },
+      data: { assigneeId: firstUserId }
+    });
+    assignedCount++;
 
-  return jsonWithCookies(response, { assignedCount: result.count }, { status: 200 });
+    const remainingIds = filteredIds.slice(1);
+    if (remainingIds.length > 0) {
+      const tasksToCreate = remainingIds.map((userId) => ({
+        projectId: sourceTask.projectId,
+        title: sourceTask.title,
+        description: sourceTask.description,
+        priority: sourceTask.priority,
+        status: "TODO" as const,
+        assigneeId: userId
+      }));
+
+      const result = await prisma.task.createMany({
+        data: tasksToCreate
+      });
+      assignedCount += result.count;
+    }
+  } else {
+    // If it's already assigned, create copies for all selected employees
+    const tasksToCreate = filteredIds.map((userId) => ({
+      projectId: sourceTask.projectId,
+      title: sourceTask.title,
+      description: sourceTask.description,
+      priority: sourceTask.priority,
+      status: "TODO" as const,
+      assigneeId: userId
+    }));
+
+    const result = await prisma.task.createMany({
+      data: tasksToCreate
+    });
+    assignedCount += result.count;
+  }
+
+  return jsonWithCookies(response, { assignedCount }, { status: 200 });
 }

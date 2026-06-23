@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 const navItems = [
   { href: "/admin", label: "Overview", icon: "layoutDashboard" },
   { href: "/admin/employees", label: "Employees", icon: "users" },
+  { href: "/admin/teams", label: "Teams", icon: "workflow" },
   { href: "/admin/tasks", label: "Tasks", icon: "folderKanban" },
   { href: "/admin/activity", label: "Activity", icon: "barChart3" },
   { href: "/admin/notifications", label: "Notifications", icon: "bell" }

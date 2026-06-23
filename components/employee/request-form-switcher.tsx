@@ -8,9 +8,10 @@ type Props = {
   projects: { id: string; name: string }[];
   teamLeads: { id: string; fullName: string }[];
   defaultProjectId?: string;
+  teamName: string;
 };
 
-export default function RequestFormSwitcher({ projects, teamLeads, defaultProjectId = "" }: Props) {
+export default function RequestFormSwitcher({ projects, teamLeads, defaultProjectId = "", teamName }: Props) {
   const [type, setType] = useState<"MISSED" | "LEAVE">("MISSED");
 
   return (
@@ -28,9 +29,9 @@ export default function RequestFormSwitcher({ projects, teamLeads, defaultProjec
       </div>
 
       {type === "MISSED" ? (
-        <SupportRequestCard projects={projects} defaultProjectId={defaultProjectId} />
+        <SupportRequestCard projects={projects} defaultProjectId={defaultProjectId} teamName={teamName} />
       ) : (
-        <LeaveRequestCard projects={projects} teamLeads={teamLeads} />
+        <LeaveRequestCard projects={projects} teamLeads={teamLeads} teamName={teamName} />
       )}
     </div>
   );

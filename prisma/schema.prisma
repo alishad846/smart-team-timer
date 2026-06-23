@@ -97,6 +97,7 @@ model User {
   notificationsSent Notification[]
   notificationsReceived Notification[] @relation("NotificationRecipient")
   notificationsReviewed Notification[] @relation("NotificationReviewedBy")
+  ledTeams      Team[]         @relation("TeamLeader")
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
 
@@ -138,10 +139,13 @@ model Team {
   appUsages      AppUsage[]
   websiteUsages  WebsiteUsage[]
   dailySummaries DailySummary[]
+  leaderId       String?        @map("leader_id")
+  leader         User?          @relation("TeamLeader", fields: [leaderId], references: [id], onDelete: SetNull)
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
 
   @@index([organizationId])
+  @@index([leaderId])
   @@map("teams")
 }
 
@@ -228,6 +232,8 @@ model TimeEntry {
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
   @@index([organizationId, userId])
+  @@index([organizationId, startedAt])
+  @@index([userId, organizationId, startedAt])
   @@map("time_entries")
 }
 
@@ -250,6 +256,7 @@ model ActivityLog {
   createdAt       DateTime      @default(now()) @map("created_at")
 
   @@index([organizationId, userId])
+  @@index([organizationId, capturedAt])
   @@map("activity_logs")
 }
 
@@ -268,6 +275,7 @@ model Screenshot {
   createdAt      DateTime     @default(now()) @map("created_at")
 
   @@index([organizationId, userId])
+  @@index([organizationId, capturedAt])
   @@map("screenshots")
 }
 
@@ -286,6 +294,8 @@ model AppUsage {
   createdAt       DateTime     @default(now()) @map("created_at")
 
   @@index([organizationId, userId])
+  @@index([organizationId, capturedAt])
+  @@index([userId, organizationId, capturedAt])
   @@map("app_usage")
 }
 
@@ -305,6 +315,8 @@ model WebsiteUsage {
   createdAt       DateTime     @default(now()) @map("created_at")
 
   @@index([organizationId, userId])
+  @@index([organizationId, capturedAt])
+  @@index([userId, organizationId, capturedAt])
   @@map("website_usage")
 }
 

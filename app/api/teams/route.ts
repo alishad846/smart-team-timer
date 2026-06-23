@@ -12,9 +12,30 @@ export async function GET(request: NextRequest) {
     return jsonWithCookies(response, { error: "Unauthorized" }, { status: 401 });
   }
 
+  const membership = await prisma.teamMember.findFirst({
+    where: {
+      userId: context.profile.id,
+      status: { not: "REMOVED" }
+    }
+  });
+
+  if (!membership) {
+    return jsonWithCookies(response, { error: "No organization found" }, { status: 404 });
+  }
+
+  const organizationId = request.nextUrl.searchParams.get("organizationId") ?? membership.organizationId;
+
   const teams = await prisma.team.findMany({
     where: {
-      organizationId: request.nextUrl.searchParams.get("organizationId") ?? undefined
+      organizationId
+    },
+    include: {
+      leader: true,
+      members: {
+        include: {
+          user: true
+        }
+      }
     },
     orderBy: { createdAt: "desc" }
   });
@@ -38,7 +59,15 @@ export async function POST(request: NextRequest) {
   }
 
   const team = await prisma.team.create({
-    data: parsed.data
+    data: parsed.data,
+    include: {
+      leader: true,
+      members: {
+        include: {
+          user: true
+        }
+      }
+    }
   });
 
   return jsonWithCookies(response, { team }, { status: 201 });

@@ -28,13 +28,15 @@ type LeaveRequestCardProps = {
   description?: string;
   projects?: { id: string; name: string }[];
   teamLeads?: { id: string; fullName: string }[];
+  teamName?: string;
 };
 
 export function LeaveRequestCard({
   title = "Plan leave",
   description = "Pick the start and end date for your leave request and explain the reason.",
   projects = [],
-  teamLeads = []
+  teamLeads = [],
+  teamName = "Unassigned"
 }: LeaveRequestCardProps) {
   const router = useRouter();
   const [startDate, setStartDate] = useState("");
@@ -116,6 +118,16 @@ export function LeaveRequestCard({
             onChange={(event) => setReason(event.target.value)}
             placeholder="Example: Family event, medical appointment, or personal work."
             rows={5}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="leave-team">Assigned Team</Label>
+          <input
+            id="leave-team"
+            className="w-full rounded-md border border-border/60 bg-muted/50 px-3 py-2 text-sm cursor-not-allowed text-muted-foreground"
+            value={teamName}
+            disabled
+            readOnly
           />
         </div>
         <div className="space-y-2">

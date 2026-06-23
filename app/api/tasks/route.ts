@@ -46,6 +46,74 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Get organization membership
+  const membership = await prisma.teamMember.findFirst({
+    where: {
+      userId: context.profile.id,
+      status: { not: "REMOVED" }
+    }
+  });
+
+  if (!membership) {
+    return jsonWithCookies(response, { error: "No organization membership found" }, { status: 404 });
+  }
+
+  const organizationId = membership.organizationId;
+
+  // Find project
+  const project = await prisma.project.findFirst({
+    where: {
+      id: parsed.data.projectId,
+      organizationId
+    }
+  });
+
+  if (!project) {
+    return jsonWithCookies(response, { error: "Project not found in this organization" }, { status: 404 });
+  }
+
+  // Check if non-admin is team lead of project's team
+  const isAdmin = context.profile.role === "OWNER" || context.profile.role === "MANAGER";
+  if (!isAdmin) {
+    if (!project.teamId) {
+      return jsonWithCookies(
+        response,
+        { error: "You are not authorized to create tasks for this project (unassigned project)" },
+        { status: 403 }
+      );
+    }
+
+    const team = await prisma.team.findFirst({
+      where: {
+        id: project.teamId,
+        leaderId: context.profile.id
+      }
+    });
+
+    if (!team) {
+      return jsonWithCookies(
+        response,
+        { error: "You are not authorized to create tasks for this project (must be Team Lead)" },
+        { status: 403 }
+      );
+    }
+
+    // Check if assignee is in the team
+    if (parsed.data.assigneeId) {
+      const assigneeMember = await prisma.teamMember.findFirst({
+        where: {
+          userId: parsed.data.assigneeId,
+          teamId: team.id,
+          status: { not: "REMOVED" }
+        }
+      });
+
+      if (!assigneeMember) {
+        return jsonWithCookies(response, { error: "Assignee must be a member of your team" }, { status: 400 });
+      }
+    }
+  }
+
   const task = await prisma.task.create({
     data: parsed.data
   });

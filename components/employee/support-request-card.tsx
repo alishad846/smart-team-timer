@@ -17,6 +17,7 @@ type SupportRequestCardProps = {
   placeholder?: string;
   projects: { id: string; name: string }[];
   defaultProjectId?: string;
+  teamName?: string;
 };
 
 async function readJsonResponse(response: Response) {
@@ -38,7 +39,8 @@ export function SupportRequestCard({
   description = "Send a request to your admin if you missed a timer or need work clarification.",
   placeholder = "Describe why the time needs to be added.",
   projects,
-  defaultProjectId = ""
+  defaultProjectId = "",
+  teamName = "Unassigned"
 }: SupportRequestCardProps) {
   const router = useRouter();
   const [projectId, setProjectId] = useState(defaultProjectId);
@@ -122,6 +124,16 @@ export function SupportRequestCard({
               <Input id="toTime" type="time" value={toTime} onChange={(event) => setToTime(event.target.value)} />
             </div>
           </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="support-team">Assigned Team</Label>
+          <Input
+            id="support-team"
+            className="w-full rounded-md border border-border/60 bg-muted/50 px-3 py-2 text-sm cursor-not-allowed text-muted-foreground"
+            value={teamName}
+            disabled
+            readOnly
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="projectId">Project</Label>

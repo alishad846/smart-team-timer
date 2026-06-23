@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { AppShell, type NavItem } from "@/components/dashboard/app-shell";
 import { getWorkspaceContext } from "@/lib/workspace";
+import { prisma } from "@/lib/prisma";
 
 const navItems = [
   { href: "/employee/workspace", label: "Workspace", icon: "layoutDashboard" },
@@ -24,13 +25,26 @@ export default async function EmployeeLayout({
     redirect("/admin");
   }
 
+  // Check if they lead any team
+  const ledTeamsCount = await prisma.team.count({
+    where: {
+      organizationId: context.organization.id,
+      leaderId: context.profile.id
+    }
+  });
+
+  const dynamicNavItems: NavItem[] = [...navItems];
+  if (ledTeamsCount > 0) {
+    dynamicNavItems.push({ href: "/employee/team", label: "My Team", icon: "users" });
+  }
+
   return (
     <AppShell
       title="Employee workspace"
       subtitle="Personal tracking"
       accent="Start your timer, review your stats, and send help requests."
       footerNote="Your tracking data syncs every 30 seconds from the desktop tracker."
-      navItems={navItems}
+      navItems={dynamicNavItems}
       bellHref="/employee/requests"
       notificationScope={context.organization.id}
     >

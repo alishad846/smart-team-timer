@@ -155,16 +155,27 @@ export async function POST(request: NextRequest) {
       return jsonWithCookies(response, { entry: currentEntry });
     }
 
-    const residualSeconds = computeDuration(currentEntry.updatedAt.toISOString(), endedAt.toISOString());
+    let residualSeconds = computeDuration(currentEntry.updatedAt.toISOString(), endedAt.toISOString());
+    let status: "PAUSED" | "STOPPED" = "PAUSED";
+    let finalPauseStartedAt: Date | null = endedAt;
+    let finalEndedAt = endedAt;
+
+    if (currentEntry.totalSeconds + residualSeconds >= 7200) {
+      residualSeconds = Math.max(0, 7200 - currentEntry.totalSeconds);
+      status = "STOPPED";
+      finalPauseStartedAt = null;
+      finalEndedAt = new Date(currentEntry.updatedAt.getTime() + residualSeconds * 1000);
+    }
+
     const residual = splitResidualSeconds(currentEntry, residualSeconds);
     const totalSeconds = currentEntry.totalSeconds + residualSeconds;
     const productiveSeconds = currentEntry.productiveSeconds + residual.productiveSeconds;
     const entry = await prisma.timeEntry.update({
       where: { id: currentEntry.id },
       data: {
-        status: "PAUSED",
-        endedAt,
-        pauseStartedAt: endedAt,
+        status,
+        endedAt: finalEndedAt,
+        pauseStartedAt: finalPauseStartedAt,
         totalSeconds,
         productiveSeconds,
         idleSeconds: currentEntry.idleSeconds + residual.idleSeconds
@@ -187,7 +198,14 @@ export async function POST(request: NextRequest) {
     return jsonWithCookies(response, { entry });
   }
 
-  const elapsedSeconds = computeDuration(currentEntry.updatedAt.toISOString(), endedAt.toISOString());
+  let elapsedSeconds = computeDuration(currentEntry.updatedAt.toISOString(), endedAt.toISOString());
+  let finalEndedAt = endedAt;
+
+  if (currentEntry.totalSeconds + elapsedSeconds >= 7200) {
+    elapsedSeconds = Math.max(0, 7200 - currentEntry.totalSeconds);
+    finalEndedAt = new Date(currentEntry.updatedAt.getTime() + elapsedSeconds * 1000);
+  }
+
   const elapsed = splitResidualSeconds(currentEntry, elapsedSeconds);
   const totalSeconds = currentEntry.totalSeconds + elapsedSeconds;
   const productiveSeconds = currentEntry.productiveSeconds + elapsed.productiveSeconds;
@@ -197,7 +215,7 @@ export async function POST(request: NextRequest) {
     where: { id: currentEntry.id },
     data: {
       status: "STOPPED",
-      endedAt,
+      endedAt: finalEndedAt,
       pauseStartedAt: null,
       totalSeconds,
       productiveSeconds,

@@ -45,7 +45,8 @@ const normalizedGithubUsername = z.preprocess((value) => {
 export const teamSchema = z.object({
   organizationId: z.string().min(1),
   name: z.string().min(2),
-  description: z.string().optional().default("")
+  description: z.string().optional().default(""),
+  leaderId: z.string().optional().nullable()
 });
 
 export const projectSchema = z.object({
@@ -127,7 +128,7 @@ export const teamMemberSchema = z.object({
 
 export const teamMemberUpdateSchema = z.object({
   memberId: z.string().min(1),
-  teamId: z.string().optional(),
+  teamId: z.string().optional().nullable(),
   role: z.enum(["OWNER", "MANAGER", "EMPLOYEE", "INTERN"]).optional(),
   status: z.enum(["INVITED", "ACTIVE", "PAUSED", "REMOVED"]).optional(),
   consentStatus: z.enum(["PENDING", "ACCEPTED", "REVOKED"]).optional(),

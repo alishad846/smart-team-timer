@@ -163,15 +163,22 @@ export function TimerPanel({
   const activeSeconds = useMemo(() => {
     if (!displayedEntry) return 0;
     if (displayedEntry.status === "PAUSED" || displayedEntry.status === "STOPPED") {
-      return displayedEntry.totalSeconds;
+      return Math.min(7200, displayedEntry.totalSeconds);
     }
     if (!mounted || !now) {
-      return displayedEntry.totalSeconds;
+      return Math.min(7200, displayedEntry.totalSeconds);
     }
     const referenceMs = new Date(displayedEntry.updatedAt).getTime();
     const activeElapsedMs = Math.max(0, now - referenceMs);
-    return displayedEntry.totalSeconds + Math.floor(activeElapsedMs / 1000);
+    const total = displayedEntry.totalSeconds + Math.floor(activeElapsedMs / 1000);
+    return Math.min(7200, total);
   }, [displayedEntry, mounted, now]);
+
+  useEffect(() => {
+    if (currentEntry?.status === "RUNNING" && activeSeconds >= 7200) {
+      void sendAction("STOP");
+    }
+  }, [activeSeconds, currentEntry?.status]);
 
   async function sendAction(action: "START" | "STOP" | "PAUSE" | "RESUME") {
     if ((action === "START" || action === "RESUME") && !canTrack) {
