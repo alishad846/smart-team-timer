@@ -12,7 +12,7 @@
   "scripts": {
     "predev": "node scripts/ensure-prisma-client.mjs",
     "dev": "next dev",
-    "prebuild": "node scripts/ensure-prisma-client.mjs",
+    "prebuild": "prisma generate",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
