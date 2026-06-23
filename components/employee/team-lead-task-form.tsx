@@ -34,6 +34,7 @@ type TeamMemberOption = {
 type TeamOption = {
   id: string;
   name: string;
+  leaderId: string | null;
   members: TeamMemberOption[];
 };
 
@@ -167,7 +168,7 @@ export function TeamLeadTaskForm({ projects, teams }: TeamLeadTaskFormProps) {
                   <option value="">No assignee (Unassigned)</option>
                   {allTeammates.map((m) => (
                     <option key={m.userId} value={m.userId}>
-                      {m.user.fullName} ({m.role.toLowerCase()})
+                      {m.user.fullName} ({teams.some((t) => t.leaderId === m.userId) ? "team lead" : m.role.toLowerCase()})
                     </option>
                   ))}
                 </Select>

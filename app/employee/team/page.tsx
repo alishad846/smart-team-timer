@@ -202,7 +202,7 @@ export default async function TeamLeadPage() {
                               <TableCell className="font-medium py-4">
                                 <div>{member.user.fullName}</div>
                                 <div className="text-xs text-muted-foreground">
-                                  {member.title || member.role.toLowerCase()}
+                                  {member.userId === team.leaderId ? "team lead" : (member.title || member.role.toLowerCase())}
                                 </div>
                               </TableCell>
                               <TableCell>

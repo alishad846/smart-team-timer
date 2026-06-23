@@ -276,7 +276,7 @@ export function TeamsClient({ initialTeams, initialMembers, organizationId }: Te
                       <option value="">No Team Lead selected</option>
                       {eligibleLeaders.map((u) => (
                         <option key={u.id} value={u.id}>
-                          {u.fullName} ({u.role.toLowerCase()})
+                          {u.fullName} ({teams.some((t) => t.leaderId === u.id) ? "team lead" : u.role.toLowerCase()})
                         </option>
                       ))}
                     </Select>
@@ -373,7 +373,7 @@ export function TeamsClient({ initialTeams, initialMembers, organizationId }: Te
                             <div key={m.id} className="flex justify-between items-center text-xs px-2 py-1 rounded bg-background border border-border/40">
                               <span className="font-medium truncate">{m.user.fullName}</span>
                               <Badge variant="secondary" className="scale-90 select-none text-[10px]">
-                                {m.role.toLowerCase()}
+                                {team.leaderId === m.userId ? "team lead" : m.role.toLowerCase()}
                               </Badge>
                             </div>
                           ))
@@ -411,7 +411,7 @@ export function TeamsClient({ initialTeams, initialMembers, organizationId }: Te
                       <TableCell className="py-3">
                         <div className="font-medium text-sm">{member.user.fullName}</div>
                         <div className="text-[10px] text-muted-foreground">
-                          {member.role} • {member.user.email}
+                          {teams.some((t) => t.leaderId === member.userId) ? "TEAM LEAD" : member.role} • {member.user.email}
                         </div>
                       </TableCell>
                       <TableCell className="py-3">
