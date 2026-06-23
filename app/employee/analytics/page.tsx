@@ -112,7 +112,7 @@ export default async function EmployeeAnalyticsPage(props: {
   });
   const trendData = snapshot.buckets;
   const lowActivityWindows = activityLogs
-    .filter((log) => log.idleSeconds > 60)
+    .filter((log) => log.idleSeconds > 15 * 60)
     .map((log) => format(log.capturedAt, "h:mm a"))
     .slice(0, 4);
 

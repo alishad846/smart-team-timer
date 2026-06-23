@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+// Avoid importing @supabase/ssr here — it pulls in browser-targeted code
+// that causes "self is not defined" during Next.js dev middleware bundling.
 
 const protectedRoutes = ["/dashboard", "/admin", "/employee"];
 const authRoutes = ["/auth/login", "/auth/register"];
@@ -14,40 +15,24 @@ export async function middleware(request: NextRequest) {
     }
   });
 
-  const user =
-    supabaseUrl && supabaseAnonKey
-      ? await (async () => {
-          const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-            cookies: {
-              get(name) {
-                return request.cookies.get(name)?.value;
-              },
-              set(name, value, options) {
-                response = NextResponse.next({
-                  request: {
-                    headers: request.headers
-                  }
-                });
-                response.cookies.set({ name, value, ...options });
-              },
-              remove(name, options) {
-                response = NextResponse.next({
-                  request: {
-                    headers: request.headers
-                  }
-                });
-                response.cookies.set({ name, value: "", ...options });
-              }
-            }
-          });
+  // Lightweight auth presence check: avoid invoking Supabase server helpers in middleware
+  // which may pull in browser globals. We simply detect an auth cookie here and
+  // let higher-level server code validate the session when needed.
+  const authCookieNames = [
+    "sb-access-token",
+    "sb:token",
+    "supabase-auth-token",
+    "supabase-session"
+  ];
 
-          const {
-            data: { user }
-          } = await supabase.auth.getUser();
+  const hasAuthCookie = request.cookies.getAll().some((cookie) => {
+    return (
+      (cookie.name.startsWith("sb-") && cookie.name.includes("-auth-token")) ||
+      authCookieNames.includes(cookie.name)
+    );
+  });
 
-          return user ?? null;
-        })()
-      : null;
+  const user = hasAuthCookie ? {} : null;
 
   const isProtected = protectedRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)

@@ -54,6 +54,7 @@ export default async function AdminActivityPage() {
   ]);
 
   const { totalTrackedHours, productiveMinutes, idleMinutes, productivityScore } = summarizeTimeEntries(timeEntries);
+  const lowActivityCount = activityLogs.filter((log) => log.idleSeconds > 15 * 60).length;
 
   const memberStats = members
     .map((member) => {
@@ -116,6 +117,19 @@ export default async function AdminActivityPage() {
           </CardContent>
         </Card>
       </section>
+
+      <Card className="border-border/70">
+        <CardHeader>
+          <CardTitle>Idle threshold</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          <p>
+            {lowActivityCount > 0
+              ? `${lowActivityCount} activity windows crossed the 15-minute idle threshold in the last 24 hours.`
+              : "No activity windows crossed the 15-minute idle threshold in the last 24 hours."}
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <Card className="border-border/70">

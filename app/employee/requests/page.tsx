@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { SupportRequestCard } from "@/components/employee/support-request-card";
+import RequestFormSwitcher from "@/components/employee/request-form-switcher";
 import { TrackingConsentCard } from "@/components/employee/tracking-consent-card";
 import { NotificationSeenMarker } from "@/components/dashboard/notification-seen-marker";
 import { Badge } from "@/components/ui/badge";
@@ -39,13 +40,7 @@ export default async function EmployeeRequestsPage() {
 
       <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <div className="space-y-6">
-          <SupportRequestCard
-            title="Missed timer or blocker"
-            description="Pick the missing time range and explain why it should be added."
-            placeholder="Example: I forgot to start the timer from 10:00 AM to 12:00 PM because of an urgent client call."
-            projects={data.projects}
-            defaultProjectId={data.activeEntry?.projectId ?? ""}
-          />
+          <RequestFormSwitcher projects={data.projects} teamLeads={data.teamLeads} defaultProjectId={data.activeEntry?.projectId ?? ""} />
 
           <Card className="border-border/70">
             <CardHeader>
@@ -82,6 +77,42 @@ export default async function EmployeeRequestsPage() {
                       </div>
                     </div>
                     <p className="mt-3 text-sm text-muted-foreground">{item.requestReason ?? item.message}</p>
+                  </div>
+                ))}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/70">
+            <CardHeader>
+              <CardTitle>Approved Leaves & Reasons</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {data.notifications.filter((item) => item.kind === "REQUEST" && item.title.toLowerCase().includes("leave") && item.requestStatus === "APPROVED" && item.createdById === context.profile.id).length ===
+              0 ? (
+                <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+                  No approved leaves recorded.
+                </div>
+              ) : null}
+              {data.notifications
+                .filter((item) => item.kind === "REQUEST" && item.title.toLowerCase().includes("leave") && item.requestStatus === "APPROVED" && item.createdById === context.profile.id)
+                .map((item) => (
+                  <div key={item.id} className="rounded-2xl border border-border bg-muted/30 p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="font-medium">{item.title}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {item.requestStartAt && item.requestEndAt
+                            ? `${format(item.requestStartAt, "MMM d, yyyy")} - ${format(item.requestEndAt, "MMM d, yyyy")}`
+                            : "No time window"}
+                        </p>
+                      </div>
+                      <Badge variant="success">Approved</Badge>
+                    </div>
+                    {item.requestReason && (
+                      <p className="mt-2.5 text-sm text-muted-foreground">
+                        <strong className="text-foreground">Reason:</strong> {item.requestReason}
+                      </p>
+                    )}
                   </div>
                 ))}
             </CardContent>

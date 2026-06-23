@@ -6,15 +6,23 @@ import { createNotification, listNotifications } from "@/lib/notifications";
 
 export async function GET() {
   const response = NextResponse.next();
-  const context = await getWorkspaceContext();
+  try {
+    const context = await getWorkspaceContext();
 
-  if (!context) {
-    return jsonWithCookies(response, { error: "Unauthorized" }, { status: 401 });
+    if (!context) {
+      return jsonWithCookies(response, { error: "Unauthorized" }, { status: 401 });
+    }
+
+    const notifications = await listNotifications(context.organization.id, 50);
+
+    return jsonWithCookies(response, { notifications });
+  } catch (error) {
+    return jsonWithCookies(
+      response,
+      { error: error instanceof Error ? error.message : "Unable to list notifications" },
+      { status: 500 }
+    );
   }
-
-  const notifications = await listNotifications(context.organization.id, 50);
-
-  return jsonWithCookies(response, { notifications });
 }
 
 export async function POST(request: NextRequest) {

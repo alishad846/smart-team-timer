@@ -6,7 +6,7 @@ import { jsonWithCookies } from "@/lib/http";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { isTrackerRequest } from "@/lib/tracker-auth";
 
-const IDLE_THRESHOLD_SECONDS = 60;
+const IDLE_THRESHOLD_SECONDS = 15 * 60;
 
 function deriveDomain(value: string) {
   try {

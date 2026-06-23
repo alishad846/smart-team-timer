@@ -66,7 +66,7 @@ export default async function ActivityPage() {
   const { totalTrackedHours, productiveMinutes, idleMinutes, productivityScore } = summarizeTimeEntries(timeEntries);
   const appUsage = buildAppUsage(activityLogs);
   const latestScreenshots = screenshots.slice(0, 4);
-  const lowActivityCount = activityLogs.filter((log) => log.idleSeconds > 60).length;
+  const lowActivityCount = activityLogs.filter((log) => log.idleSeconds > 15 * 60).length;
 
   return (
     <div className="space-y-8">
@@ -177,8 +177,8 @@ export default async function ActivityPage() {
           <p>
             Idle sessions are measured from the desktop tracker and synced in near real time.{" "}
             {lowActivityCount > 0
-              ? `${lowActivityCount} windows crossed the idle threshold in the current workspace.`
-              : "No idle windows crossed the warning threshold yet."}
+              ? `${lowActivityCount} windows crossed the 15-minute idle threshold in the current workspace.`
+              : "No idle windows crossed the 15-minute warning threshold yet."}
           </p>
         </CardContent>
       </Card>

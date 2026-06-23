@@ -4,16 +4,15 @@ import { format } from "date-fns";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ActivityTimeline } from "@/components/employee/activity-timeline";
 import { IdleWarning } from "@/components/employee/idle-warning";
-import { StatCard } from "@/components/dashboard/stat-card";
 import { TimerPanel } from "@/components/employee/timer-panel";
 import { TrackingConsentCard } from "@/components/employee/tracking-consent-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AssignedTasksList } from "@/components/employee/assigned-tasks-list";
-import { formatDuration, formatPercent } from "@/lib/utils";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { loadEmployeeDashboardData } from "@/lib/employee-dashboard";
 import { buildActivitySnapshot } from "@/lib/activity-periods";
+import { WorkspaceSummaryCards } from "@/components/employee/workspace-summary-cards";
 
 export default async function EmployeeWorkspacePage() {
   const context = await getWorkspaceContext();
@@ -37,7 +36,6 @@ export default async function EmployeeWorkspacePage() {
   const recentEntries = data.timeEntries.filter((entry) => entry.startedAt >= cutoff);
   const todayLogs = data.activityLogs.filter((log) => log.capturedAt >= todayStart);
   const todaySnapshot = buildActivitySnapshot(todayEntries, "daily", new Date());
-  const streakSnapshot = buildActivitySnapshot(data.timeEntries, "weekly", new Date());
   const assignedProjects = data.projects.filter((project) =>
     data.assignedTasks.some((task) => task.projectId === project.id)
   );
@@ -53,32 +51,22 @@ export default async function EmployeeWorkspacePage() {
       <TrackingConsentCard consentStatus={context.membership.consentStatus} />
       <IdleWarning enabled={context.membership.consentStatus === "ACCEPTED" && data.activeEntry?.status === "RUNNING"} />
 
-      <section className="grid gap-4 lg:grid-cols-4">
-        <StatCard
-          label="Active work time today"
-          value={formatDuration(todaySnapshot.productiveMinutes)}
-          delta="Resets daily"
-          helper="This shows productive work only and resets at midnight."
-        />
-        <StatCard
-          label="Activity score"
-          value={formatPercent(todaySnapshot.productivityScore)}
-          delta="Today"
-          helper="Based on productive time versus idle time."
-        />
-        <StatCard
-          label="Credits earned"
-          value={`${todaySnapshot.creditsEarned}`}
-          delta="1 hr = 3"
-          helper="1 hour of productive work earns 3 credits."
-        />
-        <StatCard
-          label="Streak"
-          value={`${streakSnapshot.streakDays} days`}
-          delta="Motivation"
-          helper="Consecutive days meeting the daily credit goal."
-        />
-      </section>
+      <WorkspaceSummaryCards
+        userId={context.profile.id}
+        organizationId={context.organization.id}
+        initialEntries={data.timeEntries.map((entry) => ({
+          startedAt: entry.startedAt.toISOString(),
+          productiveSeconds: entry.productiveSeconds,
+          idleSeconds: entry.idleSeconds,
+          totalSeconds: entry.totalSeconds
+        }))}
+        initialSummary={{
+          todayProductiveMinutes: todaySnapshot.productiveMinutes,
+          todayProductivityScore: todaySnapshot.productivityScore,
+          todayCreditsEarned: todaySnapshot.creditsEarned,
+          streakDays: buildActivitySnapshot(data.timeEntries, "weekly", new Date()).streakDays
+        }}
+      />
 
       <section>
         <ActivityTimeline

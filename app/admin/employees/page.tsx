@@ -23,7 +23,7 @@ export default async function AdminEmployeesPage() {
     redirect("/employee");
   }
 
-  const [teams, members] = await Promise.all([
+  const [teams, members, approvedLeaves] = await Promise.all([
     prisma.team.findMany({
       where: { organizationId: context.organization.id },
       orderBy: { createdAt: "asc" }
@@ -32,6 +32,17 @@ export default async function AdminEmployeesPage() {
       where: { organizationId: context.organization.id },
       include: { user: true, team: true },
       orderBy: { createdAt: "desc" }
+    }),
+    prisma.notification.findMany({
+      where: {
+        organizationId: context.organization.id,
+        kind: "REQUEST",
+        title: {
+          contains: "Leave",
+          mode: "insensitive"
+        },
+        requestStatus: "APPROVED"
+      }
     })
   ]);
 
@@ -86,29 +97,55 @@ export default async function AdminEmployeesPage() {
                   <TableHead>GitHub</TableHead>
                   <TableHead>Team</TableHead>
                   <TableHead>Consent</TableHead>
+                  <TableHead>Leaves</TableHead>
                   <TableHead>Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {members.filter((m) => m.status !== "REMOVED").map((member) => (
-                  <TableRow key={member.id}>
-                    <TableCell className="font-medium">{member.user.fullName}</TableCell>
-                    <TableCell>{member.user.email}</TableCell>
-                    <TableCell>{member.user.githubUsername ? `@${member.user.githubUsername}` : "—"}</TableCell>
-                    <TableCell>{member.team?.name ?? "Unassigned"}</TableCell>
-                    <TableCell>
-                      <Badge variant={member.consentStatus === "ACCEPTED" ? "success" : "warning"}>
-                        {member.consentStatus}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="space-x-2">
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/admin/activity/${member.userId}`}>Open activity</Link>
-                      </Button>
-                      <RemoveEmployeeButton memberId={member.id} memberName={member.user.fullName} />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {members.filter((m) => m.status !== "REMOVED").map((member) => {
+                  const userLeaves = approvedLeaves.filter((leave) => leave.createdById === member.userId);
+                  const now = new Date();
+                  const isOnLeaveNow = userLeaves.some((leave) => {
+                    if (!leave.requestStartAt || !leave.requestEndAt) return false;
+                    const start = new Date(leave.requestStartAt);
+                    const end = new Date(leave.requestEndAt);
+                    return now >= start && now <= end;
+                  });
+
+                  return (
+                    <TableRow key={member.id}>
+                      <TableCell className="font-medium">{member.user.fullName}</TableCell>
+                      <TableCell>{member.user.email}</TableCell>
+                      <TableCell>{member.user.githubUsername ? `@${member.user.githubUsername}` : "—"}</TableCell>
+                      <TableCell>{member.team?.name ?? "Unassigned"}</TableCell>
+                      <TableCell>
+                        <Badge variant={member.consentStatus === "ACCEPTED" ? "success" : "warning"}>
+                          {member.consentStatus}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold">{userLeaves.length} leave{userLeaves.length === 1 ? "" : "s"}</span>
+                          {isOnLeaveNow ? (
+                            <Badge variant="outline" className="bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/20">
+                              On Leave
+                            </Badge>
+                          ) : (
+                            <Badge variant="success">
+                              Active
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="space-x-2">
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/admin/activity/${member.userId}`}>Open activity</Link>
+                        </Button>
+                        <RemoveEmployeeButton memberId={member.id} memberName={member.user.fullName} />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>

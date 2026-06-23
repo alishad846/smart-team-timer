@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { IDLE_THRESHOLD_MS, useIdleDetection } from "@/components/employee/use-idle-detection";
 
-const IDLE_SYNC_INTERVAL_MS = 60 * 1000;
+const IDLE_SYNC_INTERVAL_MS = 15 * 60 * 1000;
 
 type IdleWarningProps = {
   enabled?: boolean;
@@ -93,7 +93,7 @@ export function IdleWarning({ enabled = true }: IdleWarningProps) {
         <div>
           <p className="font-medium">Idle detected and recorded</p>
           <p className="mt-1 text-amber-700/90">
-            No mouse or keyboard movement for 1 minute. This idle time is being recorded separately from active work.
+            No mouse or keyboard movement for 15 minutes. This idle time is being recorded separately from active work.
             Move your mouse or press a key to resume active tracking.
           </p>
         </div>

@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 const SAMPLE_INTERVAL_MS = 30_000;
 const DEFAULT_SCREENSHOT_INTERVAL_MS = 5 * 60 * 1000;
 const WINDOW_POLL_INTERVAL_MS = 5_000;
-const IDLE_THRESHOLD_SECONDS = 60;
+const IDLE_THRESHOLD_SECONDS = 15 * 60;
 
 export class ActivityCollector {
   constructor({ config, onStatusChange }) {
@@ -156,7 +156,7 @@ export class ActivityCollector {
       lastApp: payload.activeApp,
       lastError: result.ok
         ? payload.trackingState === "IDLE"
-          ? "Idle detected after 1 minute without mouse or keyboard movement."
+          ? "Idle detected after 15 minutes without mouse or keyboard movement."
           : null
         : "Activity upload failed."
     });

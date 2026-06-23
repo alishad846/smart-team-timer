@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { format, isSameDay } from "date-fns";
 import { Prisma } from "@prisma/client";
 import {
   extractProjectNameFromRequestMessage,
-  fetchNotificationById
+  fetchNotificationById,
+  createNotification
 } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { jsonWithCookies } from "@/lib/http";
@@ -40,6 +42,8 @@ export async function POST(request: NextRequest, { params }: Params) {
       return jsonWithCookies(response, { error: "Request not found" }, { status: 404 });
     }
 
+    const isLeaveRequest = notification.title.toLowerCase().includes("leave");
+
     if (notification.kind !== "REQUEST") {
       return jsonWithCookies(response, { error: "Only request notifications can be reviewed" }, { status: 400 });
     }
@@ -58,6 +62,21 @@ export async function POST(request: NextRequest, { params }: Params) {
           and organization_id = ${context.organization.id}
       `);
 
+      if (isLeaveRequest && notification.createdById && notification.requestStartAt && notification.requestEndAt) {
+        const leaveRange = isSameDay(notification.requestStartAt, notification.requestEndAt)
+          ? format(notification.requestStartAt, "MMM d, yyyy")
+          : `${format(notification.requestStartAt, "MMM d, yyyy")} to ${format(notification.requestEndAt, "MMM d, yyyy")}`;
+
+        await createNotification({
+          organizationId: context.organization.id,
+          createdById: context.profile.id,
+          title: "Leave rejected",
+          message: `Your leave request for ${leaveRange} was rejected.`,
+          kind: "ANNOUNCEMENT",
+          audience: "ALL"
+        });
+      }
+
       const updated = await fetchNotificationById(context.organization.id, notification.id);
 
       return jsonWithCookies(response, { request: updated }, { status: 200 });
@@ -74,9 +93,48 @@ export async function POST(request: NextRequest, { params }: Params) {
     const requestStartAt = new Date(notification.requestStartAt);
     const requestEndAt = new Date(notification.requestEndAt);
     const totalSeconds = Math.max(0, Math.round((requestEndAt.getTime() - requestStartAt.getTime()) / 1000));
-    const requestProjectName = extractProjectNameFromRequestMessage(notification.message);
-    const requestProject =
-      notification.requestProjectId
+
+    const requesterMember = await prisma.teamMember.findUnique({
+      where: {
+        organizationId_userId: {
+          organizationId: context.organization.id,
+          userId: notification.createdById
+        }
+      },
+      select: {
+        teamId: true
+      }
+    });
+
+    if (isLeaveRequest) {
+      // Leave request approval: just update the request status, do not create a time entry (stays real).
+      await prisma.$executeRaw(Prisma.sql`
+        update notifications
+        set request_status = ${"APPROVED"}::"RequestStatus",
+            reviewed_by_id = ${context.profile.id},
+            reviewed_at = now()
+        where id = ${notification.id}
+          and organization_id = ${context.organization.id}
+      `);
+
+      if (notification.createdById) {
+        const leaveRange = isSameDay(notification.requestStartAt, notification.requestEndAt)
+          ? format(notification.requestStartAt, "MMM d, yyyy")
+          : `${format(notification.requestStartAt, "MMM d, yyyy")} to ${format(notification.requestEndAt, "MMM d, yyyy")}`;
+
+        await createNotification({
+          organizationId: context.organization.id,
+          createdById: context.profile.id,
+          title: "Leave approved",
+          message: `Your leave request for ${leaveRange} was approved.`,
+          kind: "ANNOUNCEMENT",
+          audience: "ALL"
+        });
+      }
+    } else {
+      // Project time request approval: creates a STOPPED time entry with productive seconds.
+      const requestProjectName = extractProjectNameFromRequestMessage(notification.message);
+      const requestProject = notification.requestProjectId
         ? await prisma.project.findFirst({
             where: {
               id: notification.requestProjectId,
@@ -98,45 +156,34 @@ export async function POST(request: NextRequest, { params }: Params) {
             })
           : null;
 
-    const requesterMember = await prisma.teamMember.findUnique({
-      where: {
-        organizationId_userId: {
-          organizationId: context.organization.id,
-          userId: notification.createdById
-        }
-      },
-      select: {
-        teamId: true
-      }
-    });
+      await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw(Prisma.sql`
+          update notifications
+          set request_status = ${"APPROVED"}::"RequestStatus",
+              reviewed_by_id = ${context.profile.id},
+              reviewed_at = now()
+          where id = ${notification.id}
+            and organization_id = ${context.organization.id}
+        `);
 
-    await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw(Prisma.sql`
-        update notifications
-        set request_status = ${"APPROVED"}::"RequestStatus",
-            reviewed_by_id = ${context.profile.id},
-            reviewed_at = now()
-        where id = ${notification.id}
-          and organization_id = ${context.organization.id}
-      `);
-
-      await tx.timeEntry.create({
-        data: {
-          userId: notification.createdById!,
-          organizationId: context.organization.id,
-          teamId: requesterMember?.teamId ?? null,
-          projectId: requestProject?.id ?? notification.requestProjectId ?? null,
-          taskId: null,
-          status: "STOPPED",
-          startedAt: requestStartAt,
-          endedAt: requestEndAt,
-          totalSeconds,
-          productiveSeconds: totalSeconds,
-          idleSeconds: 0,
-          note: notification.requestReason ?? notification.message
-        }
+        await tx.timeEntry.create({
+          data: {
+            userId: notification.createdById!,
+            organizationId: context.organization.id,
+            teamId: requesterMember?.teamId ?? null,
+            projectId: requestProject?.id ?? notification.requestProjectId ?? null,
+            taskId: null,
+            status: "STOPPED",
+            startedAt: requestStartAt,
+            endedAt: requestEndAt,
+            totalSeconds,
+            productiveSeconds: totalSeconds,
+            idleSeconds: 0,
+            note: notification.requestReason ?? notification.message
+          }
+        });
       });
-    });
+    }
 
     const updatedRequest = await fetchNotificationById(context.organization.id, notification.id);
 

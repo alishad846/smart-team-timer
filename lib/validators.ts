@@ -175,6 +175,32 @@ export const notificationSchema = z.object({
   )
 });
 
+const calendarDateString = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid date")
+  .transform((value) => value.trim());
+
+export const leaveRequestSchema = z
+  .object({
+    startDate: calendarDateString,
+    endDate: calendarDateString,
+    reason: z.preprocess(
+      (value) => (typeof value === "string" ? value.trim() : value),
+      z.string().min(10, "Reason must be at least 10 characters")
+    )
+    ,
+    documentUrl: z
+      .preprocess((value) => (typeof value === "string" ? value.trim() : value), z.string().url().optional())
+    ,
+    teamLeadId: z.preprocess((value) => (typeof value === "string" ? value.trim() : value), z.string().optional())
+    ,
+    projectId: z.preprocess((value) => (typeof value === "string" ? value.trim() : value), z.string().optional())
+  })
+  .refine((value) => new Date(`${value.endDate}T12:00:00`).getTime() >= new Date(`${value.startDate}T12:00:00`).getTime(), {
+    message: "End date must be on or after start date",
+    path: ["endDate"]
+  });
+
 export const timeCorrectionRequestSchema = z
   .object({
     projectId: z.preprocess(

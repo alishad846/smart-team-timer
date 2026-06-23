@@ -73,6 +73,31 @@ export async function PATCH(request: NextRequest) {
     return jsonWithCookies(response, { error: "Invalid payload", issues: parsed.error.flatten() }, { status: 400 });
   }
 
+  if (parsed.data.status === "REMOVED") {
+    const memberToDelete = await prisma.teamMember.findUnique({
+      where: { id: parsed.data.memberId },
+      include: { user: true }
+    });
+
+    if (memberToDelete) {
+      // 1. Delete from Supabase Auth
+      try {
+        const { createAdminSupabase } = await import("@/lib/supabase/admin");
+        const supabase = createAdminSupabase();
+        await supabase.auth.admin.deleteUser(memberToDelete.user.authUserId);
+      } catch (err) {
+        console.error("Failed to delete user from Supabase Auth:", err);
+      }
+
+      // 2. Delete user from local database (which cascade deletes memberships, time entries, logs, screenshots, summaries)
+      await prisma.user.delete({
+        where: { id: memberToDelete.userId }
+      });
+    }
+
+    return jsonWithCookies(response, { member: null, removed: true });
+  }
+
   const member = await prisma.teamMember.update({
     where: { id: parsed.data.memberId },
     data: {

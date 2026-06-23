@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { jsonWithCookies } from "@/lib/http";
 
-const DEFAULT_IDLE_SECONDS = 60;
+const DEFAULT_IDLE_SECONDS = 15 * 60;
 
 export async function POST(request: NextRequest) {
   const response = NextResponse.next();

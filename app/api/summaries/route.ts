@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   const focusSessions = timeEntries.filter((entry) => entry.totalSeconds >= 25 * 60).length;
   const appSwitches = activityLogs.length;
   const lowActivityWindows = activityLogs
-    .filter((log) => log.idleSeconds > 60)
+    .filter((log) => log.idleSeconds > 15 * 60)
     .map((log) => new Date(log.capturedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }))
     .slice(0, 3);
 

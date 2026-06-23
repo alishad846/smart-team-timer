@@ -95,6 +95,7 @@ model User {
   websiteUsages WebsiteUsage[]
   summaries     DailySummary[]
   notificationsSent Notification[]
+  notificationsReceived Notification[] @relation("NotificationRecipient")
   notificationsReviewed Notification[] @relation("NotificationReviewedBy")
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
@@ -330,6 +331,7 @@ model Notification {
   id             String               @id @default(cuid())
   organizationId String               @map("organization_id")
   createdById    String?              @map("created_by_id")
+  recipientUserId String?             @map("recipient_user_id")
   title          String
   message        String
   kind           NotificationKind     @default(ANNOUNCEMENT)
@@ -346,6 +348,7 @@ model Notification {
   organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   project        Project?             @relation(fields: [requestProjectId], references: [id], onDelete: SetNull)
   createdBy      User?                @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  recipientUser  User?                @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
   reviewedBy     User?                @relation("NotificationReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
 
   @@index([organizationId, createdAt])

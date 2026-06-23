@@ -61,6 +61,7 @@ export type EmployeeScreenshot = {
 
 export type EmployeeDashboardData = {
   projects: EmployeeProject[];
+  teamLeads: { id: string; fullName: string }[];
   tasks: EmployeeTask[];
   assignedTasks: EmployeeTask[];
   timeEntries: EmployeeTimeEntry[];
@@ -185,6 +186,16 @@ export async function loadEmployeeDashboardData({ organizationId, userId }: Empl
     listNotifications(organizationId, 12)
   ]);
 
+  const managers = await prisma.teamMember.findMany({
+    where: {
+      organizationId,
+      role: { in: ["OWNER", "MANAGER"] }
+    },
+    include: {
+      user: true
+    }
+  });
+
   const normalizedTasks: EmployeeTask[] = tasks.map((task) => ({
     id: task.id,
     title: task.title,
@@ -203,7 +214,7 @@ export async function loadEmployeeDashboardData({ organizationId, userId }: Empl
   const focusSessions = timeEntries.filter((entry) => entry.totalSeconds >= 25 * 60).length;
   const appSwitches = activityLogs.length;
   const lowActivityWindows = activityLogs
-    .filter((log) => log.idleSeconds > 60)
+    .filter((log) => log.idleSeconds > 15 * 60)
     .map((log) => format(log.capturedAt, "h:mm a"))
     .slice(0, 4);
   const aiSummary = buildAiSummary({
@@ -233,6 +244,7 @@ export async function loadEmployeeDashboardData({ organizationId, userId }: Empl
 
   return {
     projects: projects.map((project) => ({ id: project.id, name: project.name })),
+    teamLeads: managers.map((m) => ({ id: m.user.id, fullName: m.user.fullName })),
     tasks: normalizedTasks,
     assignedTasks: normalizedTasks.filter((task) => task.assigneeId === userId),
     timeEntries: timeEntries.map((entry) => ({

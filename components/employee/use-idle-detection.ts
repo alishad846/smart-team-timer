@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-export const IDLE_THRESHOLD_MS = 60 * 1000;
+export const IDLE_THRESHOLD_MS = 15 * 60 * 1000;
 
 export function useIdleDetection(enabled = true) {
   const [idleMs, setIdleMs] = useState(0);

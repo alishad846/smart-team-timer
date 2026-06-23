@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Play, Pause, Square, RotateCcw } from "lucide-react";
@@ -71,6 +71,7 @@ export function TimerPanel({
   const [now, setNow] = useState<number | null>(null);
   const [mounted, setMounted] = useState(false);
   const [currentEntry, setCurrentEntry] = useState<TimeEntry | null>(initialEntry);
+  const [liveEntry, setLiveEntry] = useState<TimeEntry | null>(initialEntry);
   const [projectId, setProjectId] = useState(initialEntry?.projectId ?? tasks[0]?.projectId ?? projects[0]?.id ?? "");
   const [taskId, setTaskId] = useState(initialEntry?.taskId ?? "");
   const [note, setNote] = useState(initialEntry?.note ?? "");
@@ -103,25 +104,74 @@ export function TimerPanel({
 
   useEffect(() => {
     setCurrentEntry(initialEntry);
+    setLiveEntry(initialEntry);
   }, [initialEntry?.id, initialEntry?.status, initialEntry?.startedAt, initialEntry?.updatedAt, initialEntry?.totalSeconds, initialEntry?.productiveSeconds, initialEntry?.idleSeconds, initialEntry?.projectId, initialEntry?.taskId, initialEntry?.note]);
+
+  useEffect(() => {
+    if (!currentEntry || currentEntry.status === "STOPPED") {
+      return;
+    }
+
+    const currentEntryId = currentEntry.id;
+    let cancelled = false;
+
+    async function syncCurrentEntry() {
+      try {
+        const params = new URLSearchParams({
+          userId,
+          organizationId
+        });
+        const response = await fetch(`/api/time-entries?${params.toString()}`, {
+          cache: "no-store"
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as { entries?: TimeEntry[] };
+        const nextEntry = data.entries?.find((entry) => entry.id === currentEntryId);
+
+        if (!nextEntry || cancelled) {
+          return;
+        }
+
+        setLiveEntry(nextEntry);
+      } catch {
+        // Ignore transient refresh errors. The next poll will catch up.
+      }
+    }
+
+    void syncCurrentEntry();
+    const timer = window.setInterval(() => {
+      void syncCurrentEntry();
+    }, 30_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [currentEntry, organizationId, userId]);
 
   const filteredTasks = useMemo(
     () => tasks.filter((task) => !projectId || task.projectId === projectId),
     [projectId, tasks]
   );
 
+  const displayedEntry = liveEntry ?? currentEntry;
+
   const activeSeconds = useMemo(() => {
-    if (!currentEntry) return 0;
-    if (currentEntry.status === "PAUSED" || currentEntry.status === "STOPPED") {
-      return currentEntry.totalSeconds;
+    if (!displayedEntry) return 0;
+    if (displayedEntry.status === "PAUSED" || displayedEntry.status === "STOPPED") {
+      return displayedEntry.totalSeconds;
     }
     if (!mounted || !now) {
-      return currentEntry.totalSeconds;
+      return displayedEntry.totalSeconds;
     }
-    const referenceMs = new Date(currentEntry.updatedAt).getTime();
+    const referenceMs = new Date(displayedEntry.updatedAt).getTime();
     const activeElapsedMs = Math.max(0, now - referenceMs);
-    return currentEntry.totalSeconds + Math.floor(activeElapsedMs / 1000);
-  }, [currentEntry, mounted, now]);
+    return displayedEntry.totalSeconds + Math.floor(activeElapsedMs / 1000);
+  }, [displayedEntry, mounted, now]);
 
   async function sendAction(action: "START" | "STOP" | "PAUSE" | "RESUME") {
     if ((action === "START" || action === "RESUME") && !canTrack) {
@@ -158,6 +208,7 @@ export function TimerPanel({
       }
 
       setCurrentEntry(data.entry);
+      setLiveEntry(data.entry);
       setMessage(
         action === "START"
           ? "Timer started."
@@ -187,7 +238,7 @@ export function TimerPanel({
               Your workspace timer
             </Badge>
             <Badge className={cn("w-fit", isRunning ? "bg-emerald-500" : isPaused ? "bg-amber-500" : "")}>
-              {currentEntry?.status ?? "STOPPED"}
+              {displayedEntry?.status ?? "STOPPED"}
             </Badge>
           </div>
           {!canTrack ? (
@@ -291,11 +342,11 @@ export function TimerPanel({
             </div>
             <div className="rounded-2xl border border-border bg-background/70 p-4">
               <p className="text-sm text-muted-foreground">Productive minutes</p>
-              <p className="mt-2 text-2xl font-semibold">{Math.max(0, Math.round((currentEntry?.productiveSeconds ?? 0) / 60))}m</p>
+              <p className="mt-2 text-2xl font-semibold">{Math.max(0, Math.round((displayedEntry?.productiveSeconds ?? 0) / 60))}m</p>
             </div>
             <div className="rounded-2xl border border-border bg-background/70 p-4">
               <p className="text-sm text-muted-foreground">Idle minutes</p>
-              <p className="mt-2 text-2xl font-semibold">{Math.max(0, Math.round((currentEntry?.idleSeconds ?? 0) / 60))}m</p>
+              <p className="mt-2 text-2xl font-semibold">{Math.max(0, Math.round((displayedEntry?.idleSeconds ?? 0) / 60))}m</p>
             </div>
             <div className="rounded-2xl border border-border bg-background/70 p-4">
               <p className="text-sm text-muted-foreground">Selected task</p>
