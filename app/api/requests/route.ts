@@ -63,9 +63,9 @@ export async function POST(request: NextRequest) {
         organizationId: context.organization.id,
         createdById: context.profile.id,
         title: "Time correction request",
-        message: `Correction requested for ${project.name} on ${format(requestStartAt, "MMM d, h:mm a")} - ${format(
+        message: `Correction requested for ${project.name} on ${format(requestStartAt, "MMM d, HH:mm")} - ${format(
           requestEndAt,
-          "h:mm a"
+          "HH:mm"
         )}. Reason: ${reason}`,
         kind: "REQUEST",
         audience: "ADMINS",
@@ -76,6 +76,23 @@ export async function POST(request: NextRequest) {
         requestReason: reason,
         requestStatus: "PENDING"
       });
+
+      // If the request is for same-day afternoon (11:30-14:30), also schedule an admin notification for early morning (6:00-9:00 AM)
+      const startHour = requestStartAt.getHours();
+      const endHour = requestEndAt.getHours();
+      if (startHour >= 11 && endHour <= 14) {
+        await createNotification({
+          organizationId: context.organization.id,
+          createdById: context.profile.id,
+          title: "Early morning admin alert",
+          message: `Admin alert for time correction request from ${format(requestStartAt, "MMM d, HH:mm")} to ${format(requestEndAt, "HH:mm")}.`,
+          kind: "ANNOUNCEMENT",
+          audience: "ADMINS",
+          requestStartAt: new Date(requestStartAt.setHours(6, 0, 0, 0)),
+          requestEndAt: new Date(requestStartAt.setHours(9, 0, 0, 0)),
+          requestStatus: "PENDING"
+        });
+      }
 
       if (!notification) {
         return jsonWithCookies(

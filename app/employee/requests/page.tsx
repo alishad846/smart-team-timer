@@ -108,7 +108,7 @@ export default async function EmployeeRequestsPage() {
                         <p className="font-medium">{item.title}</p>
                         <p className="mt-1 text-sm text-muted-foreground">
                           {item.requestStartAt && item.requestEndAt
-                            ? `${format(item.requestStartAt, "MMM d, h:mm a")} - ${format(item.requestEndAt, "h:mm a")}`
+                            ? `${format(item.requestStartAt, "MMM d, HH:mm")} - ${format(item.requestEndAt, "HH:mm")}`
                             : "No time window"}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
