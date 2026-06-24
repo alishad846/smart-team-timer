@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ActivityLog } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { subHours } from "date-fns";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -54,7 +55,7 @@ export default async function AdminActivityPage() {
   ]);
 
   const { totalTrackedHours, productiveMinutes, idleMinutes, productivityScore } = summarizeTimeEntries(timeEntries);
-  const lowActivityCount = activityLogs.filter((log) => log.idleSeconds > 15 * 60).length;
+  const lowActivityCount = activityLogs.filter((log: ActivityLog) => log.idleSeconds > 15 * 60).length;
 
   const memberStats = members
     .map((member) => {
