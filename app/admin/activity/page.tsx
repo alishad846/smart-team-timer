@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ActivityLog } from "@prisma/client";
 import type { TeamMember } from "@prisma/client";
-import type { ActivityLog } from "@prisma/client";
+
 import { redirect } from "next/navigation";
 import { subHours } from "date-fns";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -60,7 +60,7 @@ export default async function AdminActivityPage() {
   const lowActivityCount = activityLogs.filter((log: ActivityLog) => log.idleSeconds > 15 * 60).length;
 
   const memberStats = members
-    .map((member: any) => {
+    .map((member: TeamMember) => {
       const employeeEntries = timeEntries.filter((entry) => entry.userId === member.userId);
       const productive = employeeEntries.reduce((sum, entry) => sum + entry.productiveSeconds, 0);
       const idle = employeeEntries.reduce((sum, entry) => sum + entry.idleSeconds, 0);
