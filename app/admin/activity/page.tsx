@@ -12,8 +12,11 @@ import { summarizeTimeEntries } from "@/lib/time-metrics";
 import { getWorkspaceContext } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 60; // ISR: cache for 60 seconds
 
-export default async function AdminActivityPage() {
+// @ts-ignore
+export default async function AdminActivityPage({ params, searchParams }: { params: Record<string, string | string[]>; searchParams: { page?: string; size?: string } }) {
+  // searchParams are directly destructured from the function arguments
   const context = await getWorkspaceContext();
 
   if (!context) {
@@ -27,12 +30,14 @@ export default async function AdminActivityPage() {
   const [members, timeEntries, activityLogs, screenshots] = await Promise.all([
     prisma.teamMember.findMany({
       where: { organizationId: context.organization.id },
-      include: { user: true, team: true },
+      include: { user: { select: { id: true, fullName: true, email: true, githubUsername: true } }, team: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
+      skip: ((Number(searchParams.page) || 1) - 1) * (Number(searchParams.size) || 20),
+      take: Number(searchParams.size) || 20,
     }),
     prisma.timeEntry.findMany({
       where: { organizationId: context.organization.id },
-      include: { user: true },
+      select: { userId: true, productiveSeconds: true, idleSeconds: true, startedAt: true },
       orderBy: { startedAt: "desc" },
     }),
     prisma.activityLog.findMany({
@@ -40,13 +45,13 @@ export default async function AdminActivityPage() {
         organizationId: context.organization.id,
         capturedAt: { gte: subHours(new Date(), 24) },
       },
-      include: { user: true },
+      select: { userId: true, capturedAt: true, idleSeconds: true },
       orderBy: { capturedAt: "desc" },
       take: 60,
     }),
     prisma.screenshot.findMany({
       where: { organizationId: context.organization.id },
-      include: { user: true },
+      select: { id: true, user: { select: { fullName: true } }, activeApp: true, activeWindow: true, capturedAt: true },
       orderBy: { capturedAt: "desc" },
       take: 8,
     }),
@@ -157,6 +162,25 @@ export default async function AdminActivityPage() {
                     </TableCell>
                   </TableRow>
                 ))}
+                  {/* Pagination */}
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center">
+                      <div className="flex justify-center space-x-4">
+                        <Link
+                          href={`?page=${(Number(searchParams.page) || 1) - 1}&size=${searchParams.size || 20}`}
+                          className={`px-3 py-1 rounded ${ (Number(searchParams.page) || 1) <= 1 ? "pointer-events-none opacity-50" : "bg-primary text-primary-foreground"}`}
+                        >
+                          Prev
+                        </Link>
+                        <Link
+                          href={`?page=${(Number(searchParams.page) || 1) + 1}&size=${searchParams.size || 20}`}
+                          className="px-3 py-1 rounded bg-primary text-primary-foreground"
+                        >
+                          Next
+                        </Link>
+                      </div>
+                    </TableCell>
+                  </TableRow>
               </TableBody>
             </Table>
           </CardContent>

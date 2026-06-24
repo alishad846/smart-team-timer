@@ -9,12 +9,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers
-    }
-  });
-
   // Lightweight auth presence check: avoid invoking Supabase server helpers in middleware
   // which may pull in browser globals. We simply detect an auth cookie here and
   // let higher-level server code validate the session when needed.
@@ -48,7 +42,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return response;
+  // If an authenticated user accesses an auth page (login/register), send them to dashboard
+  if (user && isAuthPage) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    return NextResponse.redirect(url);
+  }
+
 }
 
 export const config = {

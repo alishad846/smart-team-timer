@@ -1,21 +1,9 @@
-import { createServerSupabase } from "@/lib/supabase/server";
 import { Suspense } from "react";
 import { AuthForm } from "@/components/auth/auth-form";
-import { redirect } from "next/navigation";
+
+export const runtime = "edge";
 
 export default async function LoginPage() {
-  let user = null;
-  const supabase = await createServerSupabase();
-  try {
-    const { data } = await supabase.auth.getUser();
-    user = data.user;
-  } catch (e) {
-    console.error('Failed to get user:', e);
-  }
-  if (user) {
-    redirect("/dashboard");
-  }
-
   return (
     <main className="grid min-h-screen place-items-center px-6 py-12">
       <Suspense
