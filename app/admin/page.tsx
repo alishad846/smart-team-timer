@@ -51,7 +51,7 @@ export default async function AdminPage() {
 
   const [members, timeEntries, activityLogs, screenshots] = await Promise.all([
     prisma.teamMember.findMany({
-      where: { organizationId: context.organization.id },
+      where: { organizationId: context.organization.id, status: { not: "REMOVED" } },
       include: { user: true, team: true },
       orderBy: { createdAt: "desc" }
     }) as unknown as MemberWithRelations[],
