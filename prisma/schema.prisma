@@ -86,8 +86,8 @@ model User {
   githubUsername String?       @map("github_username")
   avatarUrl     String?        @map("avatar_url")
   role          Role           @default(EMPLOYEE)
-  organizationId String @map("organization_id")
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId String? @map("organization_id")
+  organization   Organization? @relation(fields: [organizationId], references: [id])
   memberships   TeamMember[]
   assignedTasks Task[]
   timeEntries   TimeEntry[]

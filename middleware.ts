@@ -1,37 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-// Avoid importing @supabase/ssr here — it pulls in browser-targeted code
-// that causes "self is not defined" during Next.js dev middleware bundling.
-
-const protectedRoutes = ["/dashboard", "/admin", "/employee"];
-const authRoutes = ["/auth/login", "/auth/register"];
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
-
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 const protectedRoutes = ["/dashboard", "/admin", "/employee"];
 const authRoutes = ["/auth/login", "/auth/register"];
-
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
+    request: { headers: request.headers },
   });
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -43,9 +20,7 @@ export async function middleware(request: NextRequest) {
         cookiesToSet.forEach(({ name, value, options }) =>
           request.cookies.set(name, value)
         );
-        response = NextResponse.next({
-          request,
-        });
+        response = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) =>
           response.cookies.set(name, value, options)
         );

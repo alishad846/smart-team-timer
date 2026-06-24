@@ -1,4 +1,5 @@
 import { Role, type Organization, type TeamMember, type User } from "@prisma/client";
+import { createServerSupabase } from "@/lib/supabase/server";
 import { cache } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -127,23 +128,47 @@ async function ensureWorkspace(profile: User) {
 }
 
 export const getWorkspaceContext = cache(async function getWorkspaceContext(): Promise<WorkspaceContext | null> {
-  const current = await getCurrentUser();
-
-  if (!current) {
+  // Directly fetch the authenticated user from Supabase instead of calling getCurrentUser (which itself calls this function).
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
     return null;
   }
 
-  const { organization, membership, profile } = await ensureWorkspace(current.profile);
+  // Find or create the user profile in the database. This mirrors the logic in getCurrentUser without invoking the circular call.
+  const profile = await prisma.user.upsert({
+    where: { authUserId: user.id },
+    update: {
+      email: user.email ?? `${user.id}@local.invalid`,
+      fullName: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email ?? "Team Member"
+    },
+    create: {
+      authUserId: user.id,
+      email: user.email ?? `${user.id}@local.invalid`,
+      fullName: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email ?? "Team Member",
+      // Create a default organization for the user to satisfy the required relation
+      organization: {
+        create: {
+          name: `${user.email ?? "User"}'s Workspace`,
+          slug: buildSlug(user.email ?? `${user.id}@local.invalid`, user.id.slice(0, 6)),
+          description: "Default SmartTeamTimer workspace"
+        }
+      }
+    }
+  });
+
+
+  const { organization, membership, profile: ensuredProfile } = await ensureWorkspace(profile);
 
   return {
     user: {
-      id: current.user.id,
-      email: current.user.email ?? current.profile.email
+      id: user.id,
+      email: user.email ?? profile.email
     },
-    profile,
+    profile: ensuredProfile,
     organization,
     membership,
-    workspaceRole: profile.role === Role.OWNER || profile.role === Role.MANAGER ? "admin" : "employee"
+    workspaceRole: ensuredProfile.role === Role.OWNER || ensuredProfile.role === Role.MANAGER ? "admin" : "employee"
   };
 });
 
