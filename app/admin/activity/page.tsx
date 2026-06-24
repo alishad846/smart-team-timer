@@ -15,8 +15,9 @@ export const dynamic = "force-dynamic";
 export const revalidate = 60; // ISR: cache for 60 seconds
 
 // @ts-ignore
-export default async function AdminActivityPage({ params, searchParams }: { params: Record<string, string | string[]>; searchParams: { page?: string; size?: string } }) {
+export default async function AdminActivityPage({ params, searchParams }: { params: Promise<Record<string, string | string[]>>; searchParams: Promise<{ page?: string; size?: string }> }) {
   // searchParams are directly destructured from the function arguments
+  const resolvedSearchParams = await searchParams;
   const context = await getWorkspaceContext();
 
   if (!context) {
@@ -32,12 +33,12 @@ export default async function AdminActivityPage({ params, searchParams }: { para
       where: { organizationId: context.organization.id },
       include: { user: { select: { id: true, fullName: true, email: true, githubUsername: true } }, team: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
-      skip: ((Number(searchParams.page) || 1) - 1) * (Number(searchParams.size) || 20),
-      take: Number(searchParams.size) || 20,
+      skip: ((Number(resolvedSearchParams.page) || 1) - 1) * (Number(resolvedSearchParams.size) || 20),
+      take: Number(resolvedSearchParams.size) || 20,
     }),
     prisma.timeEntry.findMany({
       where: { organizationId: context.organization.id },
-      select: { userId: true, productiveSeconds: true, idleSeconds: true, startedAt: true },
+      select: { userId: true, productiveSeconds: true, idleSeconds: true, totalSeconds: true, startedAt: true },
       orderBy: { startedAt: "desc" },
     }),
     prisma.activityLog.findMany({
@@ -58,13 +59,13 @@ export default async function AdminActivityPage({ params, searchParams }: { para
   ]);
 
   const { totalTrackedHours, productiveMinutes, idleMinutes, productivityScore } = summarizeTimeEntries(timeEntries);
-  const lowActivityCount = activityLogs.filter((log: ActivityLog) => log.idleSeconds > 15 * 60).length;
+  const lowActivityCount = activityLogs.filter((log) => log.idleSeconds > 15 * 60).length;
 
   const memberStats = members
     .map((member: any) => {
-      const employeeEntries = timeEntries.filter((entry: TimeEntry) => entry.userId === member.userId);
-      const productive = employeeEntries.reduce((sum: number, entry: TimeEntry) => sum + entry.productiveSeconds, 0);
-      const idle = employeeEntries.reduce((sum: number, entry: TimeEntry) => sum + entry.idleSeconds, 0);
+      const employeeEntries = timeEntries.filter((entry) => entry.userId === member.userId);
+      const productive = employeeEntries.reduce((sum: number, entry) => sum + entry.productiveSeconds, 0);
+      const idle = employeeEntries.reduce((sum: number, entry) => sum + entry.idleSeconds, 0);
       const score = productive + idle > 0 ? Math.round((productive / (productive + idle)) * 100) : 0;
       return {
         id: member.userId,
@@ -167,13 +168,13 @@ export default async function AdminActivityPage({ params, searchParams }: { para
                     <TableCell colSpan={6} className="text-center">
                       <div className="flex justify-center space-x-4">
                         <Link
-                          href={`?page=${(Number(searchParams.page) || 1) - 1}&size=${searchParams.size || 20}`}
-                          className={`px-3 py-1 rounded ${ (Number(searchParams.page) || 1) <= 1 ? "pointer-events-none opacity-50" : "bg-primary text-primary-foreground"}`}
+                          href={`?page=${(Number(resolvedSearchParams.page) || 1) - 1}&size=${resolvedSearchParams.size || 20}`}
+                          className={`px-3 py-1 rounded ${ (Number(resolvedSearchParams.page) || 1) <= 1 ? "pointer-events-none opacity-50" : "bg-primary text-primary-foreground"}`}
                         >
                           Prev
                         </Link>
                         <Link
-                          href={`?page=${(Number(searchParams.page) || 1) + 1}&size=${searchParams.size || 20}`}
+                          href={`?page=${(Number(resolvedSearchParams.page) || 1) + 1}&size=${resolvedSearchParams.size || 20}`}
                           className="px-3 py-1 rounded bg-primary text-primary-foreground"
                         >
                           Next
