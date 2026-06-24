@@ -21,6 +21,7 @@ type TaskOption = {
   id: string;
   title: string;
   projectId: string;
+  description?: string | null;
 };
 
 type TimeEntry = {
@@ -280,6 +281,14 @@ export function TimerPanel({
                   </option>
                 ))}
               </Select>
+              {taskId && filteredTasks.find(t => t.id === taskId)?.description ? (
+                <div className="mt-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground mb-1">Task Summary:</p>
+                  <div className="max-h-[120px] overflow-y-auto whitespace-pre-wrap pr-2 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
+                    {filteredTasks.find(t => t.id === taskId)?.description}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
 

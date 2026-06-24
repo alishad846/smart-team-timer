@@ -33,8 +33,8 @@ export default async function AdminActivityPage({ params, searchParams }: { para
       where: { organizationId: context.organization.id },
       include: { user: { select: { id: true, fullName: true, email: true, githubUsername: true } }, team: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
-      skip: ((Number(resolvedSearchParams.page) || 1) - 1) * (Number(resolvedSearchParams.size) || 20),
-      take: Number(resolvedSearchParams.size) || 20,
+      skip: ((Number(resolvedSearchParams.page) || 1) - 1) * (Number(resolvedSearchParams.size) || 10),
+      take: Number(resolvedSearchParams.size) || 10,
     }),
     prisma.timeEntry.findMany({
       where: { organizationId: context.organization.id },
@@ -54,7 +54,7 @@ export default async function AdminActivityPage({ params, searchParams }: { para
       where: { organizationId: context.organization.id },
       select: { id: true, user: { select: { fullName: true } }, activeApp: true, activeWindow: true, capturedAt: true },
       orderBy: { capturedAt: "desc" },
-      take: 8,
+      take: 50,
     }),
   ]);
 
@@ -168,13 +168,13 @@ export default async function AdminActivityPage({ params, searchParams }: { para
                     <TableCell colSpan={6} className="text-center">
                       <div className="flex justify-center space-x-4">
                         <Link
-                          href={`?page=${(Number(resolvedSearchParams.page) || 1) - 1}&size=${resolvedSearchParams.size || 20}`}
+                          href={`?page=${(Number(resolvedSearchParams.page) || 1) - 1}&size=${resolvedSearchParams.size || 10}`}
                           className={`px-3 py-1 rounded ${ (Number(resolvedSearchParams.page) || 1) <= 1 ? "pointer-events-none opacity-50" : "bg-primary text-primary-foreground"}`}
                         >
                           Prev
                         </Link>
                         <Link
-                          href={`?page=${(Number(resolvedSearchParams.page) || 1) + 1}&size=${resolvedSearchParams.size || 20}`}
+                          href={`?page=${(Number(resolvedSearchParams.page) || 1) + 1}&size=${resolvedSearchParams.size || 10}`}
                           className="px-3 py-1 rounded bg-primary text-primary-foreground"
                         >
                           Next
@@ -190,8 +190,9 @@ export default async function AdminActivityPage({ params, searchParams }: { para
           <CardHeader>
             <CardTitle>Recent evidence</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-{screenshots.map((shot: any) => (
+          <CardContent>
+            <div className="max-h-[400px] overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
+              {screenshots.map((shot: any) => (
                 <div key={shot.id} className="rounded-2xl border border-border bg-muted/30 p-4">
                   <p className="font-medium">{shot.user.fullName}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -199,11 +200,12 @@ export default async function AdminActivityPage({ params, searchParams }: { para
                   </p>
                 </div>
               ))}
-            {activityLogs.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-                No activity logs yet. The desktop tracker will populate this once employees grant permission and start work.
-              </div>
-            )}
+              {screenshots.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+                  No activity logs yet. The desktop tracker will populate this once employees grant permission and start work.
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </section>

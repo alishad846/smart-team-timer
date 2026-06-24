@@ -131,78 +131,80 @@ export function ActivityTimeline({
         <p className="text-sm text-muted-foreground">{subtitle}</p>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="rounded-3xl border border-border bg-background/70 p-4">
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-sm text-muted-foreground">{format(dayStart, "EEE, MMM d, yyyy")}</p>
-              <p className="mt-1 text-lg font-semibold">24-hour activity line</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Hover the green bars to see the exact active time range.
-              </p>
-            </div>
-            <div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-700">
-              {formatDuration(Math.max(0, Math.round(totalActiveMinutes)))}
-              <span className="ml-2 text-emerald-700/70">active today</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-6 text-[11px] uppercase tracking-[0.28em] text-muted-foreground">
-            <span>00</span>
-            <span className="text-center">04</span>
-            <span className="text-center">08</span>
-            <span className="text-center">12</span>
-            <span className="text-center">16</span>
-            <span className="text-right">24</span>
-          </div>
-
-          <div className="relative mt-4 h-14">
-            <div className="grid h-full gap-1" style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))" }}>
-              {hourMarks.map((hour) => {
-                const ratio = Math.min(1, hour.activeMinutes / 60);
-                const active = hour.activeMinutes > 0;
-                return (
-                  <div
-                    key={hour.label}
-                    className={cn(
-                      "h-14 rounded-md border transition-colors",
-                      active ? "border-emerald-500/40 bg-emerald-500/15" : "border-border bg-muted/30"
-                    )}
-                    style={{ opacity: active ? 0.25 + ratio * 0.65 : 1 }}
-                    title={`${hour.label} - ${Math.round(hour.activeMinutes)} active minutes`}
-                  />
-                );
-              })}
+        <div className="max-h-[350px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
+          <div className="rounded-3xl border border-border bg-background/70 p-4">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm text-muted-foreground">{format(dayStart, "EEE, MMM d, yyyy")}</p>
+                <p className="mt-1 text-lg font-semibold">24-hour activity line</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Hover the green bars to see the exact active time range.
+                </p>
+              </div>
+              <div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-700">
+                {formatDuration(Math.max(0, Math.round(totalActiveMinutes)))}
+                <span className="ml-2 text-emerald-700/70">active today</span>
+              </div>
             </div>
 
-            {bars.map((bar) => (
-              <div
-                key={bar.id}
-                className="absolute top-0 h-14 rounded-md border border-emerald-400/30 bg-emerald-500/75 shadow-[0_0_0_1px_rgba(16,185,129,0.15)] transition-all hover:bg-emerald-400 hover:shadow-[0_0_0_1px_rgba(16,185,129,0.25),0_0_18px_rgba(16,185,129,0.25)]"
-                style={{
-                  left: `calc(${bar.left}% + 2px)`,
-                  width: `calc(${bar.width}% - 4px)`,
-                  minWidth: "4px"
-                }}
-                title={bar.label}
-                aria-label={bar.label}
-              />
-            ))}
+            <div className="grid grid-cols-6 text-[11px] uppercase tracking-[0.28em] text-muted-foreground">
+              <span>00</span>
+              <span className="text-center">04</span>
+              <span className="text-center">08</span>
+              <span className="text-center">12</span>
+              <span className="text-center">16</span>
+              <span className="text-right">24</span>
+            </div>
+
+            <div className="relative mt-4 h-14">
+              <div className="grid h-full gap-1" style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))" }}>
+                {hourMarks.map((hour) => {
+                  const ratio = Math.min(1, hour.activeMinutes / 60);
+                  const active = hour.activeMinutes > 0;
+                  return (
+                    <div
+                      key={hour.label}
+                      className={cn(
+                        "h-14 rounded-md border transition-colors",
+                        active ? "border-emerald-500/40 bg-emerald-500/15" : "border-border bg-muted/30"
+                      )}
+                      style={{ opacity: active ? 0.25 + ratio * 0.65 : 1 }}
+                      title={`${hour.label} - ${Math.round(hour.activeMinutes)} active minutes`}
+                    />
+                  );
+                })}
+              </div>
+
+              {bars.map((bar) => (
+                <div
+                  key={bar.id}
+                  className="absolute top-0 h-14 rounded-md border border-emerald-400/30 bg-emerald-500/75 shadow-[0_0_0_1px_rgba(16,185,129,0.15)] transition-all hover:bg-emerald-400 hover:shadow-[0_0_0_1px_rgba(16,185,129,0.25),0_0_18px_rgba(16,185,129,0.25)]"
+                  style={{
+                    left: `calc(${bar.left}% + 2px)`,
+                    width: `calc(${bar.width}% - 4px)`,
+                    minWidth: "4px"
+                  }}
+                  title={bar.label}
+                  aria-label={bar.label}
+                />
+              ))}
+            </div>
+
+            <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+              <span>00:00</span>
+              <span>06:00</span>
+              <span>12:00</span>
+              <span>18:00</span>
+              <span>24:00</span>
+            </div>
           </div>
 
-          <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-            <span>00:00</span>
-            <span>06:00</span>
-            <span>12:00</span>
-            <span>18:00</span>
-            <span>24:00</span>
-          </div>
+          {windows.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground mt-4">
+              No active windows found for today yet.
+            </div>
+          ) : null}
         </div>
-
-        {windows.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-            No active windows found for today yet.
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   );

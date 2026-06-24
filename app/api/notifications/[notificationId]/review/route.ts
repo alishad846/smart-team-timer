@@ -73,7 +73,7 @@ export async function POST(request: NextRequest, { params }: Params) {
             createdById: context.profile.id,
             recipientUserId: notification.createdById,
             title: "Leave rejected",
-            message: `Your leave request for ${leaveRange} was rejected.`,
+            message: `Leave request for ${notification.createdByName ?? "Employee"} for ${leaveRange} was rejected.`,
             kind: "ANNOUNCEMENT",
             audience: "EMPLOYEES"
           });
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest, { params }: Params) {
             createdById: context.profile.id,
             recipientUserId: notification.createdById,
             title: "Time correction rejected",
-            message: `Your time correction request for "${notification.requestProjectName ?? "Project"}" was rejected.`,
+            message: `Time correction request for ${notification.createdByName ?? "Employee"} on "${notification.requestProjectName ?? "Project"}" was rejected.`,
             kind: "ANNOUNCEMENT",
             audience: "EMPLOYEES"
           });
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest, { params }: Params) {
           createdById: context.profile.id,
           recipientUserId: notification.createdById,
           title: "Leave approved",
-          message: `Your leave request for ${leaveRange} was approved.`,
+          message: `Leave request for ${notification.createdByName ?? "Employee"} for ${leaveRange} was approved.`,
           kind: "ANNOUNCEMENT",
           audience: "EMPLOYEES"
         });
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest, { params }: Params) {
           createdById: context.profile.id,
           recipientUserId: notification.createdById,
           title: "Time correction approved",
-          message: `Your time correction request for "${notification.requestProjectName ?? "Project"}" was approved.`,
+          message: `Time correction request for ${notification.createdByName ?? "Employee"} on "${notification.requestProjectName ?? "Project"}" was approved.`,
           kind: "ANNOUNCEMENT",
           audience: "EMPLOYEES"
         });

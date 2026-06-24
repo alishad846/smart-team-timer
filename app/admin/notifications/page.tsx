@@ -61,25 +61,27 @@ export default async function AdminNotificationsPage() {
             <CardTitle>Recent messages</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {notifications
-              .filter((item) => item.kind === "ANNOUNCEMENT")
-              .map((item) => (
-              <div key={item.id} className="rounded-2xl border border-border bg-muted/30 p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-medium">{item.title}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {item.createdByName ?? "System"} - {format(item.createdAt, "MMM d, h:mm a")}
-                    </p>
+            <div className="max-h-[400px] overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
+              {notifications
+                .filter((item) => item.kind === "ANNOUNCEMENT")
+                .map((item) => (
+                <div key={item.id} className="rounded-2xl border border-border bg-muted/30 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-medium">{item.title}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {item.createdByName ?? "System"} - {format(item.createdAt, "MMM d, h:mm a")}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <Badge variant="secondary">{item.kind}</Badge>
+                      <Badge variant="outline">{item.audience}</Badge>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <Badge variant="secondary">{item.kind}</Badge>
-                    <Badge variant="outline">{item.audience}</Badge>
-                  </div>
+                  <p className="mt-3 text-sm text-muted-foreground">{item.message}</p>
                 </div>
-                <p className="mt-3 text-sm text-muted-foreground">{item.message}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>

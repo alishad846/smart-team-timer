@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Plus, Users, ShieldAlert, Check } from "lucide-react";
+import { Loader2, Plus, Users, ShieldAlert, Check, Trash2 } from "lucide-react";
 
 type UserOption = {
   id: string;
@@ -74,6 +74,7 @@ export function TeamsClient({ initialTeams, initialMembers, organizationId }: Te
   // Loading indicator states for instant operations
   const [updatingTeamId, setUpdatingTeamId] = useState<string | null>(null);
   const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null);
+  const [deletingTeamId, setDeletingTeamId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -119,6 +120,38 @@ export function TeamsClient({ initialTeams, initialMembers, organizationId }: Te
       setCreateError(err instanceof Error ? err.message : "Could not create team");
     } finally {
       setLoadingCreate(false);
+    }
+  }
+
+  async function handleDeleteTeam(teamId: string, teamName: string) {
+    if (!confirm(`Are you sure you want to delete the team "${teamName}"? All assigned projects and employees will become unassigned.`)) return;
+
+    setDeletingTeamId(teamId);
+    setActionError(null);
+    setActionMessage(null);
+
+    try {
+      const response = await fetch(`/api/teams/${teamId}`, {
+        method: "DELETE"
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to delete team");
+      }
+
+      // Update local state
+      setTeams((prev) => prev.filter((t) => t.id !== teamId));
+      
+      // We should also clear the team from any local members that belonged to it
+      setMembers((prev) => prev.map((m) => m.team?.id === teamId ? { ...m, team: null } : m));
+      
+      setActionMessage(`Team "${teamName}" deleted successfully.`);
+      router.refresh();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not delete team");
+    } finally {
+      setDeletingTeamId(null);
     }
   }
 
@@ -337,9 +370,25 @@ export function TeamsClient({ initialTeams, initialMembers, organizationId }: Te
                           {team.description || "No description provided."}
                         </p>
                       </div>
-                      {updatingTeamId === team.id && (
-                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                      )}
+                      <div className="flex items-center gap-2">
+                        {updatingTeamId === team.id && (
+                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          disabled={deletingTeamId === team.id}
+                          onClick={() => handleDeleteTeam(team.id, team.name)}
+                          title="Delete team"
+                        >
+                          {deletingTeamId === team.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4 pt-0">

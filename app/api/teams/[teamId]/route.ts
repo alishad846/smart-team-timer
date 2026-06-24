@@ -68,3 +68,39 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   return jsonWithCookies(response, { team: updatedTeam });
 }
+
+export async function DELETE(request: NextRequest, { params }: Params) {
+  const response = NextResponse.next();
+  // Instead of requiring route user directly, we can use the existing getWorkspaceContext from workspace.ts
+  // However, getWorkspaceContext uses cookies which works inside route handlers
+  const { getWorkspaceContext } = await import("@/lib/workspace");
+  const context = await getWorkspaceContext();
+
+  if (!context) {
+    return jsonWithCookies(response, { error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (context.workspaceRole !== "admin") {
+    return jsonWithCookies(response, { error: "Forbidden: Only admins can delete teams" }, { status: 403 });
+  }
+
+  const { teamId } = await params;
+
+  // Verify the team belongs to the organization
+  const existingTeam = await prisma.team.findFirst({
+    where: {
+      id: teamId,
+      organizationId: context.organization.id
+    }
+  });
+
+  if (!existingTeam) {
+    return jsonWithCookies(response, { error: "Team not found" }, { status: 404 });
+  }
+
+  await prisma.team.delete({
+    where: { id: teamId }
+  });
+
+  return jsonWithCookies(response, { success: true });
+}

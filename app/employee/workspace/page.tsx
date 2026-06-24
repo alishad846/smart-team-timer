@@ -89,7 +89,8 @@ export default async function EmployeeWorkspacePage() {
           tasks={data.assignedTasks.map((task) => ({
             id: task.id,
             title: task.title,
-            projectId: task.projectId
+            projectId: task.projectId,
+            description: task.description
           }))}
           initialEntry={
             context.membership.consentStatus === "ACCEPTED" && data.activeEntry

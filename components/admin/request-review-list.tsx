@@ -77,7 +77,7 @@ export function RequestReviewList({ requests }: { requests: RequestRecord[] }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="max-h-[350px] overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
       {error ? (
         <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}

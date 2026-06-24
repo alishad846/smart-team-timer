@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { CreateProjectForm, CreateTaskForm, AssignWorkForm } from "@/components/admin/admin-forms";
+import { CreateProjectForm, CreateTaskForm, AssignWorkForm, DeleteTaskButton } from "@/components/admin/admin-forms";
 import { ProjectsBoard } from "@/components/admin/projects-board";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -135,8 +135,11 @@ export default async function AdminTasksPage() {
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <Badge variant="secondary">{task.status}</Badge>
-                  <Badge variant={task.priority === "HIGH" ? "warning" : "default"}>{task.priority}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{task.status}</Badge>
+                    <Badge variant={task.priority === "HIGH" ? "warning" : "default"}>{task.priority}</Badge>
+                    <DeleteTaskButton taskId={task.id} />
+                  </div>
                 </div>
               </div>
             </div>
