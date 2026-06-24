@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { AuthForm } from "@/components/auth/auth-form";
 
-export const runtime = "edge";
+
 
 export default async function LoginPage() {
   return (

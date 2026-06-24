@@ -82,11 +82,11 @@ export function AuthForm({ mode }: AuthFormProps) {
         }
       }
 
-      router.push(next as any);
+      // Navigate to the target page without adding to history
+      router.replace(next as any);
+      // Refresh to ensure any server side data is revalidated
       router.refresh();
-      if (typeof window !== 'undefined') {
-        window.location.href = next as string;
-      }
+      // No manual window.location redirect needed; Next.js router handles it
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Authentication failed");
     } finally {
