@@ -30,7 +30,7 @@ export default async function AdminActivityPage({ params, searchParams }: { para
 
   const [members, timeEntries, activityLogs, screenshots] = await Promise.all([
     prisma.teamMember.findMany({
-      where: { organizationId: context.organization.id },
+      where: { organizationId: context.organization.id, status: { not: "REMOVED" } },
       include: { user: { select: { id: true, fullName: true, email: true, githubUsername: true } }, team: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
       skip: ((Number(resolvedSearchParams.page) || 1) - 1) * (Number(resolvedSearchParams.size) || 10),
