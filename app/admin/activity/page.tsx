@@ -1,9 +1,5 @@
 import Link from "next/link";
-import type { ActivityLog } from "@prisma/client";
-import type { TeamMember } from "@prisma/client";
-
-import { redirect } from "next/navigation";
-import { subHours } from "date-fns";
+import type { ActivityLog, TeamMember, TimeEntry } from "@prisma/client";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,7 +57,7 @@ export default async function AdminActivityPage() {
 
   const memberStats = members
     .map((member: TeamMember) => {
-      const employeeEntries = timeEntries.filter((entry) => entry.userId === member.userId);
+      const employeeEntries = timeEntries.filter((entry: TimeEntry) => entry.userId === member.userId);
       const productive = employeeEntries.reduce((sum, entry) => sum + entry.productiveSeconds, 0);
       const idle = employeeEntries.reduce((sum, entry) => sum + entry.idleSeconds, 0);
       const score = productive + idle > 0 ? Math.round((productive / (productive + idle)) * 100) : 0;
