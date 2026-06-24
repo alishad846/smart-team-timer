@@ -5,28 +5,57 @@ import { NextRequest, NextResponse } from "next/server";
 const protectedRoutes = ["/dashboard", "/admin", "/employee"];
 const authRoutes = ["/auth/login", "/auth/register"];
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export async function middleware(request: NextRequest) {
-  // Lightweight auth presence check: avoid invoking Supabase server helpers in middleware
-  // which may pull in browser globals. We simply detect an auth cookie here and
-  // let higher-level server code validate the session when needed.
-  const authCookieNames = [
-    "sb-access-token",
-    "sb:token",
-    "supabase-auth-token",
-    "supabase-session"
-  ];
-
-  const hasAuthCookie = request.cookies.getAll().some((cookie) => {
-    return (
-      (cookie.name.startsWith("sb-") && cookie.name.includes("-auth-token")) ||
-      authCookieNames.includes(cookie.name)
-    );
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
   });
 
-  const user = hasAuthCookie ? {} : null;
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+
+const protectedRoutes = ["/dashboard", "/admin", "/employee"];
+const authRoutes = ["/auth/login", "/auth/register"];
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
+
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) =>
+          request.cookies.set(name, value)
+        );
+        response = NextResponse.next({
+          request,
+        });
+        cookiesToSet.forEach(({ name, value, options }) =>
+          response.cookies.set(name, value, options)
+        );
+      },
+    },
+  });
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const isProtected = protectedRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)
@@ -42,15 +71,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // If an authenticated user accesses an auth page (login/register), send them to dashboard
   if (user && isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
   }
 
+  return response;
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/employee/:path*", "/auth/:path*"]
+  matcher: ["/dashboard/:path*", "/admin/:path*", "/employee/:path*", "/auth/:path*"],
 };
