@@ -10,7 +10,31 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { summarizeTimeEntries } from "@/lib/time-metrics";
+import type { Team, TeamMember, User, TimeEntry, Project, Task } from "@prisma/client";
 import { formatDuration } from "@/lib/utils";
+
+// Type representing a row in the admin overview table
+interface MemberRow {
+  id: string;
+  name: string;
+  githubUsername?: string | null;
+  activity: string;
+  task: string;
+  timeUsed: string;
+  trackedMinutes: number;
+  lastSeen: Date | null;
+  status: string;
+  consentStatus: string;
+}
+
+type MemberWithRelations = TeamMember & { user: User; team: Team | null; };
+
+
+type TimeEntryWithRelations = TimeEntry & {
+  user: User;
+  project: Project | null;
+  task: Task | null;
+};
 
 export const dynamic = "force-dynamic";
 
@@ -30,12 +54,12 @@ export default async function AdminPage() {
       where: { organizationId: context.organization.id },
       include: { user: true, team: true },
       orderBy: { createdAt: "desc" }
-    }),
+    }) as unknown as MemberWithRelations[],
     prisma.timeEntry.findMany({
       where: { organizationId: context.organization.id },
       include: { user: true, project: true, task: true },
       orderBy: { startedAt: "desc" }
-    }),
+    }) as unknown as TimeEntryWithRelations[],
     prisma.activityLog.findMany({
       where: {
         organizationId: context.organization.id,
@@ -71,10 +95,10 @@ export default async function AdminPage() {
     }
   }
 
-  const memberRows = members
-    .map((member) => {
-      const employeeEntries = timeEntries.filter((entry) => entry.userId === member.userId);
-      const trackedMinutes = employeeEntries.reduce((sum, entry) => sum + entry.totalSeconds, 0) / 60;
+  const memberRows: MemberRow[] = members
+    .map((member: MemberWithRelations) => {
+      const employeeEntries = timeEntries.filter((entry: TimeEntryWithRelations) => entry.userId === member.userId);
+      const trackedMinutes = employeeEntries.reduce((sum: number, entry: TimeEntryWithRelations) => sum + entry.totalSeconds, 0) / 60;
       const latestEntry = latestEntryByUser.get(member.userId) ?? null;
       const latestActivity = latestActivityByUser.get(member.userId) ?? null;
 
@@ -91,11 +115,11 @@ export default async function AdminPage() {
         lastSeen: latestActivity?.capturedAt ?? latestEntry?.startedAt ?? null,
         status: member.status,
         consentStatus: member.consentStatus
-      };
+      } as MemberRow;
     })
-    .sort((left, right) => right.trackedMinutes - left.trackedMinutes);
+    .sort((left: MemberRow, right: MemberRow) => right.trackedMinutes - left.trackedMinutes);
 
-  const activeMembers = members.filter((member) => member.status === "ACTIVE").length;
+  const activeMembers = (members as MemberWithRelations[]).filter((member: MemberWithRelations) => member.status === "ACTIVE").length;
 
   return (
     <div className="space-y-8">

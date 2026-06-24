@@ -9,7 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { prisma } from "@/lib/prisma";
+
 import { listNotifications } from "@/lib/notifications";
+import type { NotificationRecord } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 
 export default async function EmployeeRequestsPage() {
@@ -64,7 +66,7 @@ export default async function EmployeeRequestsPage() {
   });
   const teamName = memberWithTeam?.team?.name ?? "Unassigned";
 
-  const teamLeads = managers.map((m) => ({ id: m.user.id, fullName: m.user.fullName }));
+  const teamLeads = managers.map((m: { user: { id: string; fullName: string } }) => ({ id: m.user.id, fullName: m.user.fullName }));
   const latestNotificationCreatedAt = notifications[0]?.createdAt.toISOString() ?? null;
 
   return (
@@ -92,16 +94,16 @@ export default async function EmployeeRequestsPage() {
               <CardTitle>Your recent requests</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {notifications.filter((item) => item.kind === "REQUEST" && item.createdById === context.profile.id).length ===
+              {notifications.filter((item: NotificationRecord) => item.kind === "REQUEST" && item.createdById === context.profile.id).length ===
               0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
                   No correction requests submitted yet.
                 </div>
               ) : null}
               {notifications
-                .filter((item) => item.kind === "REQUEST" && item.createdById === context.profile.id)
+                .filter((item: NotificationRecord) => item.kind === "REQUEST" && item.createdById === context.profile.id)
                 .slice(0, 6)
-                .map((item) => (
+                .map((item: NotificationRecord) => (
                   <div key={item.id} className="rounded-2xl border border-border bg-muted/30 p-4">
                     <div className="flex items-center justify-between gap-4">
                       <div>
@@ -132,15 +134,15 @@ export default async function EmployeeRequestsPage() {
               <CardTitle>Approved Leaves & Reasons</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {notifications.filter((item) => item.kind === "REQUEST" && item.title.toLowerCase().includes("leave") && item.requestStatus === "APPROVED" && item.createdById === context.profile.id).length ===
+              {notifications.filter((item: NotificationRecord) => item.kind === "REQUEST" && item.title.toLowerCase().includes("leave") && item.requestStatus === "APPROVED" && item.createdById === context.profile.id).length ===
               0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
                   No approved leaves recorded.
                 </div>
               ) : null}
               {notifications
-                .filter((item) => item.kind === "REQUEST" && item.title.toLowerCase().includes("leave") && item.requestStatus === "APPROVED" && item.createdById === context.profile.id)
-                .map((item) => (
+                .filter((item: NotificationRecord) => item.kind === "REQUEST" && item.title.toLowerCase().includes("leave") && item.requestStatus === "APPROVED" && item.createdById === context.profile.id)
+                .map((item: NotificationRecord) => (
                   <div key={item.id} className="rounded-2xl border border-border bg-muted/30 p-4">
                     <div className="flex items-center justify-between gap-4">
                       <div>
@@ -170,9 +172,9 @@ export default async function EmployeeRequestsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {notifications
-              .filter((item) => item.kind === "ANNOUNCEMENT")
+              .filter((item: NotificationRecord) => item.kind === "ANNOUNCEMENT")
               .slice(0, 8)
-              .map((item) => {
+              .map((item: NotificationRecord) => {
                 const isApproved = item.title.toLowerCase().includes("approved");
                 const isRejected = item.title.toLowerCase().includes("rejected");
 

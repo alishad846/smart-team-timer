@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import type { Team, TeamMember, TimeEntry, Project, Task } from "@prisma/client";
 import { startOfDay, subHours, format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceContext } from "@/lib/workspace";
@@ -12,6 +13,17 @@ import { TeamLeadTaskForm } from "@/components/employee/team-lead-task-form";
 
 export const dynamic = "force-dynamic";
 
+// Extended type for teams with members and user relation
+type LedTeam = Team & {
+  members: (TeamMember & { user: any })[];
+};
+
+// TimeEntry with included relations
+type TimeEntryFull = TimeEntry & {
+  project: Project | null;
+  task: Task | null;
+};
+
 export default async function TeamLeadPage() {
   const context = await getWorkspaceContext();
 
@@ -20,28 +32,33 @@ export default async function TeamLeadPage() {
   }
 
   // Find all teams where this user is the Team Lead
-  const ledTeams = await prisma.team.findMany({
+  // Explicitly type the result to avoid implicit any in callbacks
+  const ledTeams: LedTeam[] = await prisma.team.findMany({
     where: {
       organizationId: context.organization.id,
-      leaderId: context.profile.id
+      leaderId: context.profile.id,
     },
     include: {
       members: {
         include: {
-          user: true
-        }
-      }
-    }
+          user: true,
+        },
+      },
+    },
   });
 
   if (ledTeams.length === 0) {
     redirect("/employee");
   }
 
-  const teamMemberIds = ledTeams.flatMap((team) => team.members.map((m) => m.userId));
+  // teamMemberIds now has a proper inferred type (string[])
+  const teamMemberIds: string[] = ledTeams.flatMap((team) =>
+    team.members.map((m) => m.userId),
+  );
 
   // Find all projects assigned to the teams managed by this Team Lead
-  const ledTeamIds = ledTeams.map((team) => team.id);
+  // Explicitly type ledTeamIds for clarity
+  const ledTeamIds: string[] = ledTeams.map((team: LedTeam) => team.id);
   const projects = await prisma.project.findMany({
     where: {
       organizationId: context.organization.id,
@@ -89,7 +106,7 @@ export default async function TeamLeadPage() {
   ]);
 
   // Index maps for lookup
-  const runningEntriesByUserId = new Map(runningEntries.map((e) => [e.userId, e]));
+  const runningEntriesByUserId: Map<string, TimeEntryFull> = new Map(runningEntries.map((e: TimeEntryFull) => [e.userId, e]));
   
   const todayMinutesByUserId = new Map<string, number>();
   for (const entry of todayEntries) {
@@ -107,7 +124,7 @@ export default async function TeamLeadPage() {
 
   // Calculate team wide metrics
   const activeMembersCount = runningEntries.length;
-  const totalTrackedMinutesToday = todayEntries.reduce((sum, entry) => sum + entry.totalSeconds, 0) / 60;
+  const totalTrackedMinutesToday = todayEntries.reduce((sum: number, entry: TimeEntry) => sum + entry.totalSeconds, 0) / 60;
 
   return (
     <div className="space-y-8">

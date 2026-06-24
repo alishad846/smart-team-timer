@@ -6,6 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceContext } from "@/lib/workspace";
+import type { Team, Project, Task, TeamMember, User } from "@prisma/client";
+
+type ProjectWithTeam = Project & { team: Team | null; };
+type TaskWithRelations = Task & { project: Project | null; assignee: User | null };
+type MemberWithRelations = TeamMember & { user: User; team: Team | null };
 
 export const dynamic = "force-dynamic";
 
@@ -24,12 +29,12 @@ export default async function AdminTasksPage() {
     prisma.team.findMany({
       where: { organizationId: context.organization.id },
       orderBy: { createdAt: "asc" }
-    }),
+    }) as unknown as Team[],
     prisma.project.findMany({
       where: { organizationId: context.organization.id },
       include: { team: true },
       orderBy: { updatedAt: "desc" }
-    }),
+    }) as unknown as ProjectWithTeam[],
     prisma.task.findMany({
       where: {
         project: {
@@ -41,12 +46,12 @@ export default async function AdminTasksPage() {
         assignee: true
       },
       orderBy: { updatedAt: "desc" }
-    }),
+    }) as unknown as TaskWithRelations[],
     prisma.teamMember.findMany({
       where: { organizationId: context.organization.id },
       include: { user: true, team: true },
       orderBy: { createdAt: "desc" }
-    })
+    }) as unknown as MemberWithRelations[]
   ]);
 
   return (
@@ -85,14 +90,14 @@ export default async function AdminTasksPage() {
       </section>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <CreateProjectForm organizationId={context.organization.id} teams={teams.map((team) => ({ id: team.id, name: team.name }))} />
+        <CreateProjectForm organizationId={context.organization.id} teams={teams.map((team: Team) => ({ id: team.id, name: team.name }))} />
         <CreateTaskForm
-          projects={projects.map((project) => ({ id: project.id, name: project.name }))}
+          projects={projects.map((project: Project) => ({ id: project.id, name: project.name }))}
         />
       </div>
 
       <ProjectsBoard
-        initialProjects={projects.map((p) => ({
+        initialProjects={(projects as ProjectWithTeam[]).map((p) => ({
           id: p.id,
           name: p.name,
           status: p.status,
@@ -103,7 +108,7 @@ export default async function AdminTasksPage() {
       />
 
       <AssignWorkForm
-        employees={members.map((member) => ({
+        employees={members.map((member: MemberWithRelations) => ({
           id: member.userId,
           name: member.user.fullName,
           githubUsername: member.user.githubUsername

@@ -1,5 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { Team, TeamMember, Notification, User } from "@prisma/client";
+
+// Type that includes related user and team objects returned by Prisma
+type MemberWithRelations = TeamMember & {
+  user: User;
+  team: Team | null;
+};
 import { InviteEmployeeForm } from "@/components/admin/admin-forms";
 import { RemoveEmployeeButton } from "@/components/admin/remove-employee-button";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -32,7 +39,7 @@ export default async function AdminEmployeesPage() {
       where: { organizationId: context.organization.id },
       include: { user: true, team: true },
       orderBy: { createdAt: "desc" }
-    }),
+    }) as unknown as MemberWithRelations[],
     prisma.notification.findMany({
       where: {
         organizationId: context.organization.id,
@@ -60,7 +67,7 @@ export default async function AdminEmployeesPage() {
             <CardTitle>Active members</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-semibold">{members.filter((member) => member.status === "ACTIVE").length}</p>
+             <p className="text-3xl font-semibold">{members.filter((member: MemberWithRelations) => member.status === "ACTIVE").length}</p>
           </CardContent>
         </Card>
         <Card className="border-border/70">
@@ -68,7 +75,7 @@ export default async function AdminEmployeesPage() {
             <CardTitle>GitHub profiles</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-semibold">{members.filter((member) => Boolean(member.user.githubUsername)).length}</p>
+            <p className="text-3xl font-semibold">{members.filter((member: MemberWithRelations) => Boolean(member.user.githubUsername)).length}</p>
           </CardContent>
         </Card>
         <Card className="border-border/70">
@@ -82,7 +89,7 @@ export default async function AdminEmployeesPage() {
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <InviteEmployeeForm teams={teams.map((team) => ({ id: team.id, name: team.name }))} />
+        <InviteEmployeeForm teams={teams.map((team: Team) => ({ id: team.id, name: team.name }))} />
 
         <Card className="border-border/70">
           <CardHeader>
@@ -102,10 +109,10 @@ export default async function AdminEmployeesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {members.filter((m) => m.status !== "REMOVED").map((member) => {
-                  const userLeaves = approvedLeaves.filter((leave) => leave.createdById === member.userId);
+                 {members.filter((m: MemberWithRelations) => m.status !== "REMOVED").map((member: MemberWithRelations) => {
+                  const userLeaves = approvedLeaves.filter((leave: Notification) => leave.createdById === member.userId);
                   const now = new Date();
-                  const isOnLeaveNow = userLeaves.some((leave) => {
+                  const isOnLeaveNow = userLeaves.some((leave: Notification) => {
                     if (!leave.requestStartAt || !leave.requestEndAt) return false;
                     const start = new Date(leave.requestStartAt);
                     const end = new Date(leave.requestEndAt);

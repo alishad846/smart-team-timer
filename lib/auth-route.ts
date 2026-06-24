@@ -2,6 +2,7 @@ import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createRouteSupabase } from "@/lib/supabase/route-client";
+import { getWorkspaceContext } from "@/lib/workspace";
 
 function resolveWorkspaceRole(role?: string | null) {
   if (role === "OWNER" || role === "MANAGER" || role === "EMPLOYEE" || role === "INTERN") {
@@ -55,6 +56,10 @@ export async function requireRouteUser(request: NextRequest, response: NextRespo
 
   const resolvedRole = resolveUserRole(user);
 
+  const context = await getWorkspaceContext();
+  if (!context) {
+    throw new Error("Workspace context not found");
+  }
   const profile = await prisma.user.upsert({
     where: { authUserId: user.id },
     update: {
@@ -76,7 +81,8 @@ export async function requireRouteUser(request: NextRequest, response: NextRespo
         user.email ??
         "Team Member",
       githubUsername: resolveGithubUsername(user),
-      role: resolvedRole ?? Role.EMPLOYEE
+      role: resolvedRole ?? Role.EMPLOYEE,
+      organizationId: context.organization.id,
     }
   });
 

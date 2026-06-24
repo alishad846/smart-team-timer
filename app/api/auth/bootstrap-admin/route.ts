@@ -1,9 +1,12 @@
+// Import statements
 import { Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createRouteSupabase } from "@/lib/supabase/route-client";
+import { getWorkspaceContext } from "@/lib/workspace";
 
+// Helper functions
 function normalizeEmail(value: unknown) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
@@ -18,7 +21,7 @@ async function findAuthUserByEmail(
 ) {
   const { data, error } = await supabase.auth.admin.listUsers({
     page: 1,
-    perPage: 1000
+    perPage: 1000,
   });
 
   if (error) {
@@ -68,9 +71,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Missing Supabase admin credentials"
+          error instanceof Error ? error.message : "Missing Supabase admin credentials",
       },
       { status: 500 }
     );
@@ -85,30 +86,24 @@ export async function POST(request: NextRequest) {
       email_confirm: true,
       user_metadata: {
         full_name: adminName,
-        role: "OWNER"
-      }
+        role: "OWNER",
+      },
     });
 
     if (error || !data.user) {
-      return NextResponse.json(
-        { error: error?.message ?? "Unable to create admin account" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: error?.message ?? "Unable to create admin account" }, { status: 400 });
     }
   } else {
     const { error } = await supabase.auth.admin.updateUserById(existingUser.id, {
       email_confirm: true,
       user_metadata: {
         full_name: adminName,
-        role: "OWNER"
-      }
+        role: "OWNER",
+      },
     });
 
     if (error) {
-      return NextResponse.json(
-        { error: error.message ?? "Unable to update admin account" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: error.message ?? "Unable to update admin account" }, { status: 400 });
     }
   }
 
@@ -116,22 +111,25 @@ export async function POST(request: NextRequest) {
   const sessionSupabase = createRouteSupabase(request, bootstrapResponse);
   const { error: signInError } = await sessionSupabase.auth.signInWithPassword({
     email: adminEmail,
-    password: adminPassword
+    password: adminPassword,
   });
 
   if (signInError) {
-    return NextResponse.json(
-      { error: signInError.message ?? "Unable to sign in admin account" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: signInError.message ?? "Unable to sign in admin account" }, { status: 400 });
   }
 
   const authUsers = await supabase.auth.admin.listUsers({
     page: 1,
-    perPage: 1000
+    perPage: 1000,
   });
   const authUser =
     authUsers.data.users.find((user) => user.email?.toLowerCase() === adminEmail) ?? null;
+
+  // Retrieve workspace context for organization ID
+  const context = await getWorkspaceContext();
+  if (!context) {
+    return NextResponse.json({ error: "Workspace context not found" }, { status: 500 });
+  }
 
   if (authUser) {
     await prisma.user.upsert({
@@ -139,14 +137,15 @@ export async function POST(request: NextRequest) {
       update: {
         email: adminEmail,
         fullName: adminName,
-        role: Role.OWNER
+        role: Role.OWNER,
       },
       create: {
         authUserId: authUser.id,
         email: adminEmail,
         fullName: adminName,
-        role: Role.OWNER
-      }
+        role: Role.OWNER,
+        organizationId: context.organization.id,
+      },
     });
   }
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ActivityLog, TeamMember, TimeEntry } from "@prisma/client";
+import type { ActivityLog, TeamMember, TimeEntry, Screenshot } from "@prisma/client";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,17 +55,35 @@ export default async function AdminActivityPage() {
   const { totalTrackedHours, productiveMinutes, idleMinutes, productivityScore } = summarizeTimeEntries(timeEntries);
   const lowActivityCount = activityLogs.filter((log: ActivityLog) => log.idleSeconds > 15 * 60).length;
 
-const memberStats = members
-  .map((member: TeamMember) => {
-    const employeeEntries = timeEntries.filter((entry: TimeEntry) => entry.userId === member.userId);
-    const productive = employeeEntries.reduce((sum, entry) => sum + entry.productiveSeconds, 0);
-    const idle = employeeEntries.reduce((sum, entry) => sum + entry.idleSeconds, 0);
-    const score = productive + idle > 0 ? Math.round((productive / (productive + idle)) * 100) : 0;
-    return {
-      id: member.userId,
-      name: member.user.fullName,
-      team: member.team?.name ?? "Unassigned",
-      githubUsername: member.user.githubUsername,
+  const memberStats = members
+    .map((member: any) => {
+      const employeeEntries = timeEntries.filter((entry: TimeEntry) => entry.userId === member.userId);
+      const productive = employeeEntries.reduce((sum: number, entry: TimeEntry) => sum + entry.productiveSeconds, 0);
+      const idle = employeeEntries.reduce((sum: number, entry: TimeEntry) => sum + entry.idleSeconds, 0);
+      const score = productive + idle > 0 ? Math.round((productive / (productive + idle)) * 100) : 0;
+      return {
+        id: member.userId,
+        name: (member as any).user?.fullName ?? "",
+        team: (member as any).team?.name ?? "Unassigned",
+        githubUsername: (member as any).user?.githubUsername ?? "",
+        score,
+        consentStatus: member.consentStatus,
+      };
+    })
+    .sort((a: { score: number }, b: { score: number }) => b.score - a.score)
+
+  return (
+    <>
+      <PageHeader
+        badge="Activity monitoring"
+        title="Admin Activity Dashboard"
+        description="Open a person's detail page to review their time entries, screenshots, and app usage."
+      />
+      <section className="grid gap-4 lg:grid-cols-4">
+        <Card className="border-border/70">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Tracked hours</CardTitle>
+          </CardHeader>
           <CardContent>
             <p className="text-3xl font-semibold">{totalTrackedHours.toFixed(1)}h</p>
           </CardContent>
@@ -96,20 +114,16 @@ const memberStats = members
         </Card>
       </section>
 
-      <Card className="border-border/70">
+      <Card className="border-border/70 mt-6">
         <CardHeader>
           <CardTitle>Idle threshold</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
-          <p>
-            {lowActivityCount > 0
-              ? `${lowActivityCount} activity windows crossed the 15-minute idle threshold in the last 24 hours.`
-              : "No activity windows crossed the 15-minute idle threshold in the last 24 hours."}
-          </p>
+          <p>{lowActivityCount > 0 ? `${lowActivityCount} activity windows crossed the 15‑minute idle threshold in the last 24 hours.` : "No activity windows crossed the 15‑minute idle threshold in the last 24 hours."}</p>
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+      <section className="grid gap-4 lg:grid-cols-2 mt-6">
         <Card className="border-border/70">
           <CardHeader>
             <CardTitle>Employee activity directory</CardTitle>
@@ -127,16 +141,14 @@ const memberStats = members
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {memberStats.map((member) => (
+                {memberStats.map((member: { id: string; name: string; team: string; githubUsername: string; score: number; consentStatus: string }) => (
                   <TableRow key={member.id}>
                     <TableCell className="font-medium">{member.name}</TableCell>
                     <TableCell>{member.githubUsername ? `@${member.githubUsername}` : "-"}</TableCell>
                     <TableCell>{member.team}</TableCell>
                     <TableCell>{member.score}%</TableCell>
                     <TableCell>
-                      <Badge variant={member.consentStatus === "ACCEPTED" ? "success" : "warning"}>
-                        {member.consentStatus}
-                      </Badge>
+                      <Badge variant={member.consentStatus === "ACCEPTED" ? "success" : "warning"}>{member.consentStatus}</Badge>
                     </TableCell>
                     <TableCell>
                       <Button asChild variant="outline" size="sm">
@@ -149,28 +161,27 @@ const memberStats = members
             </Table>
           </CardContent>
         </Card>
-
         <Card className="border-border/70">
           <CardHeader>
             <CardTitle>Recent evidence</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {screenshots.map((shot) => (
-              <div key={shot.id} className="rounded-2xl border border-border bg-muted/30 p-4">
-                <p className="font-medium">{shot.user.fullName}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {shot.activeApp || "Desktop"} - {shot.activeWindow || "No window title"}
-                </p>
-              </div>
-            ))}
-            {activityLogs.length === 0 ? (
+{screenshots.map((shot: any) => (
+                <div key={shot.id} className="rounded-2xl border border-border bg-muted/30 p-4">
+                  <p className="font-medium">{shot.user.fullName}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {shot.activeApp || "Desktop"} - {shot.activeWindow || "No window title"}
+                  </p>
+                </div>
+              ))}
+            {activityLogs.length === 0 && (
               <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
                 No activity logs yet. The desktop tracker will populate this once employees grant permission and start work.
               </div>
-            ) : null}
+            )}
           </CardContent>
         </Card>
-      </div>
-    </div>
+      </section>
+    </>
   );
 }

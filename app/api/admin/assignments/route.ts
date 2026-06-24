@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { TeamMember } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { jsonWithCookies } from "@/lib/http";
 import { getWorkspaceContext } from "@/lib/workspace";
@@ -49,12 +50,12 @@ export async function POST(request: NextRequest) {
   }
 
   // Validate all employee IDs belong to this org
-  const members = await prisma.teamMember.findMany({
-    where: {
-      organizationId: context.organization.id,
-      userId: { in: employeeIds }
-    }
-  });
+  const members: TeamMember[] = await prisma.teamMember.findMany({
+  where: {
+    organizationId: context.organization.id,
+    userId: { in: employeeIds }
+  }
+});
 
   const validUserIds = new Set(members.map((m) => m.userId));
   const filteredIds = employeeIds.filter((id) => validUserIds.has(id));

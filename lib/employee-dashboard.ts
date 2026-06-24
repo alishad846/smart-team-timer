@@ -196,26 +196,26 @@ export async function loadEmployeeDashboardData({ organizationId, userId }: Empl
     }
   });
 
-  const normalizedTasks: EmployeeTask[] = tasks.map((task) => ({
+  const normalizedTasks: EmployeeTask[] = tasks.map((task: any) => ({
     id: task.id,
     title: task.title,
     description: task.description,
     status: task.status,
     priority: task.priority,
     projectId: task.projectId,
-    projectName: task.project?.name ?? "No project",
+    projectName: (task as any).project?.name ?? "No project",
     assigneeId: task.assigneeId,
     assigneeName: task.assignee?.fullName ?? null
   }));
 
   const activeEntry =
-    timeEntries.find((entry) => entry.status === "RUNNING" || entry.status === "PAUSED") ?? null;
+    timeEntries.find((entry: EmployeeTimeEntry) => entry.status === "RUNNING" || entry.status === "PAUSED") ?? null;
   const { totalTrackedHours, productiveMinutes, idleMinutes, productivityScore } = summarizeTimeEntries(timeEntries);
-  const focusSessions = timeEntries.filter((entry) => entry.totalSeconds >= 25 * 60).length;
+  const focusSessions = timeEntries.filter((entry: EmployeeTimeEntry) => entry.totalSeconds >= 25 * 60).length;
   const appSwitches = activityLogs.length;
   const lowActivityWindows = activityLogs
-    .filter((log) => log.idleSeconds > 15 * 60)
-    .map((log) => format(log.capturedAt, "h:mm a"))
+    .filter((log: EmployeeActivityLog) => log.idleSeconds > 15 * 60)
+    .map((log: EmployeeActivityLog) => format(log.capturedAt, "h:mm a"))
     .slice(0, 4);
   const aiSummary = buildAiSummary({
     productiveMinutes,
@@ -226,8 +226,7 @@ export async function loadEmployeeDashboardData({ organizationId, userId }: Empl
   });
 
   const appUsageData = activityLogs
-    .reduce(
-      (acc, log) => {
+    .reduce((acc: { app: string; minutes: number }[], log: EmployeeActivityLog) => {
         const existing = acc.find((item) => item.app === log.activeApp);
         const minutes = Math.max(1, Math.round((log.keyboardPercent + log.mousePercent) / 4));
         if (existing) {
@@ -239,15 +238,15 @@ export async function loadEmployeeDashboardData({ organizationId, userId }: Empl
       },
       [] as { app: string; minutes: number }[]
     )
-    .sort((left, right) => right.minutes - left.minutes)
+    .sort((left: { app: string; minutes: number }, right: { app: string; minutes: number }) => right.minutes - left.minutes)
     .slice(0, 6);
 
   return {
-    projects: projects.map((project) => ({ id: project.id, name: project.name })),
-    teamLeads: managers.map((m) => ({ id: m.user.id, fullName: m.user.fullName })),
+    projects: projects.map((project: EmployeeProject) => ({ id: project.id, name: project.name })),
+    teamLeads: managers.map((m: { user: { id: string; fullName: string } }) => ({ id: m.user.id, fullName: m.user.fullName })),
     tasks: normalizedTasks,
     assignedTasks: normalizedTasks.filter((task) => task.assigneeId === userId),
-    timeEntries: timeEntries.map((entry) => ({
+    timeEntries: timeEntries.map((entry: EmployeeTimeEntry) => ({
       id: entry.id,
       status: entry.status,
       startedAt: entry.startedAt,
@@ -262,7 +261,7 @@ export async function loadEmployeeDashboardData({ organizationId, userId }: Empl
       project: entry.project,
       task: entry.task
     })),
-    activityLogs: activityLogs.map((log) => ({
+    activityLogs: activityLogs.map((log: EmployeeActivityLog) => ({
       id: log.id,
       capturedAt: log.capturedAt,
       activeApp: log.activeApp,
@@ -271,7 +270,7 @@ export async function loadEmployeeDashboardData({ organizationId, userId }: Empl
       mousePercent: log.mousePercent,
       idleSeconds: log.idleSeconds
     })),
-    screenshots: screenshots.map((shot) => ({
+    screenshots: screenshots.map((shot: EmployeeScreenshot) => ({
       id: shot.id,
       capturedAt: shot.capturedAt,
       activeApp: shot.activeApp,
@@ -302,13 +301,13 @@ export async function loadEmployeeDashboardData({ organizationId, userId }: Empl
     appSwitches,
     lowActivityWindows,
     aiSummary,
-    dailyActivity: buildDailyActivity(timeEntries.map((entry) => ({
+    dailyActivity: buildDailyActivity(timeEntries.map((entry: EmployeeTimeEntry) => ({
       ...entry,
       project: entry.project ? { name: entry.project.name } : null,
       task: entry.task ? { title: entry.task.title } : null
     }))),
     weeklyTrend: buildWeeklyTrend(
-      timeEntries.map((entry) => ({
+      timeEntries.map((entry: EmployeeTimeEntry) => ({
         ...entry,
         project: entry.project ? { name: entry.project.name } : null,
         task: entry.task ? { title: entry.task.title } : null

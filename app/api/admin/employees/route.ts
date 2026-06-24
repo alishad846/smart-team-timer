@@ -89,7 +89,8 @@ export async function POST(request: NextRequest) {
       email: parsed.data.email,
       fullName: parsed.data.fullName,
       githubUsername: parsed.data.githubUsername ?? null,
-      role: parsed.data.role as Role
+      role: parsed.data.role as Role,
+      organizationId: context.organization.id,
     }
   });
 

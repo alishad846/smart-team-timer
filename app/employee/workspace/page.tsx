@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import type { EmployeeTimeEntry, EmployeeActivityLog, EmployeeProject } from "@/lib/employee-dashboard";
 import { startOfDay } from "date-fns";
 import { format } from "date-fns";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -31,14 +32,16 @@ export default async function EmployeeWorkspacePage() {
   });
 
   const todayStart = startOfDay(new Date());
-  const todayEntries = data.timeEntries.filter((entry) => entry.startedAt >= todayStart);
+  const todayEntries = data.timeEntries.filter((entry: EmployeeTimeEntry) => entry.startedAt >= todayStart);
   const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
-  const recentEntries = data.timeEntries.filter((entry) => entry.startedAt >= cutoff);
-  const todayLogs = data.activityLogs.filter((log) => log.capturedAt >= todayStart);
+  const recentEntries = data.timeEntries.filter((entry: EmployeeTimeEntry) => entry.startedAt >= cutoff);
+  const todayLogs = data.activityLogs.filter((log: EmployeeActivityLog) => log.capturedAt >= todayStart);
   const todaySnapshot = buildActivitySnapshot(todayEntries, "daily", new Date());
-  const assignedProjects = data.projects.filter((project) =>
+  const assignedProjects = data.projects.filter((project: EmployeeProject) =>
     data.assignedTasks.some((task) => task.projectId === project.id)
   );
+
+
 
   return (
     <div className="space-y-8">
@@ -54,7 +57,7 @@ export default async function EmployeeWorkspacePage() {
       <WorkspaceSummaryCards
         userId={context.profile.id}
         organizationId={context.organization.id}
-        initialEntries={data.timeEntries.map((entry) => ({
+        initialEntries={data.timeEntries.map((entry: EmployeeTimeEntry) => ({
           startedAt: entry.startedAt.toISOString(),
           productiveSeconds: entry.productiveSeconds,
           idleSeconds: entry.idleSeconds,

@@ -170,7 +170,7 @@ export async function POST(request: NextRequest, { params }: Params) {
             })
           : null;
 
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         await tx.notification.update({
           where: { id: notification.id },
           data: {

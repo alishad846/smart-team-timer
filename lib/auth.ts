@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { getWorkspaceContext } from "@/lib/workspace";
 
 function resolveWorkspaceRole(role?: string | null) {
   if (role === "OWNER" || role === "MANAGER" || role === "EMPLOYEE" || role === "INTERN") {
@@ -54,6 +55,10 @@ export const getCurrentUser = cache(async function getCurrentUser() {
 
   const resolvedRole = resolveUserRole(user);
 
+  const context = await getWorkspaceContext();
+  if (!context) {
+    throw new Error("Workspace context not found");
+  }
   const profile = await prisma.user.upsert({
     where: { authUserId: user.id },
     update: {
@@ -75,7 +80,8 @@ export const getCurrentUser = cache(async function getCurrentUser() {
         user.email ??
         "Team Member",
       githubUsername: resolveGithubUsername(user),
-      role: resolvedRole ?? Role.EMPLOYEE
+      role: resolvedRole ?? Role.EMPLOYEE,
+      organization: { connect: { id: context.organization.id } },
     }
   });
 

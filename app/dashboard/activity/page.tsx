@@ -6,22 +6,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { summarizeTimeEntries } from "@/lib/time-metrics";
+import { ActivityLog, Screenshot } from "@prisma/client";
+import type { User } from "@prisma/client";
+
 
 function buildAppUsage(activityLogs: { activeApp: string; keyboardPercent: number; mousePercent: number }[]) {
   return activityLogs
-    .reduce((acc, log) => {
-      const existing = acc.find((item) => item.app === log.activeApp);
-      const minutes = Math.max(1, Math.round((log.keyboardPercent + log.mousePercent) / 4));
-
-      if (existing) {
-        existing.minutes += minutes;
-      } else {
-        acc.push({ app: log.activeApp, minutes });
-      }
-
-      return acc;
-    }, [] as { app: string; minutes: number }[])
-    .sort((left, right) => right.minutes - left.minutes)
+    .reduce(
+      (acc, log) => {
+        const existing = acc.find((item) => item.app === log.activeApp);
+        const minutes = Math.max(1, Math.round((log.keyboardPercent + log.mousePercent) / 4));
+        if (existing) {
+          existing.minutes += minutes;
+        } else {
+          acc.push({ app: log.activeApp, minutes });
+        }
+        return acc;
+      },
+      [] as { app: string; minutes: number }[]
+    )
+    .sort((a, b) => b.minutes - a.minutes)
     .slice(0, 5);
 }
 
@@ -38,30 +42,30 @@ export default async function ActivityPage() {
       : { organizationId: context.organization.id, userId: context.profile.id };
   const activityLogCutoff = subHours(new Date(), 24);
 
-  const [timeEntries, activityLogs, screenshots] = await Promise.all([
+  const [timeEntries, activityLogsRaw, screenshots] = await Promise.all([
     prisma.timeEntry.findMany({
       where: scope,
       orderBy: { startedAt: "desc" },
-      include: { user: true, project: true }
+      include: { user: true, project: true },
     }),
     prisma.activityLog.findMany({
       where: {
         ...scope,
-        capturedAt: {
-          gte: activityLogCutoff
-        }
+        capturedAt: { gte: activityLogCutoff },
       },
       orderBy: { capturedAt: "desc" },
       take: 60,
-      include: { user: true }
+      include: { user: true },
     }),
     prisma.screenshot.findMany({
       where: scope,
       orderBy: { capturedAt: "desc" },
       take: 8,
-      include: { user: true }
-    })
+      include: { user: true },
+    }),
   ]);
+
+  const activityLogs = activityLogsRaw as ActivityLog[];
 
   const { totalTrackedHours, productiveMinutes, idleMinutes, productivityScore } = summarizeTimeEntries(timeEntries);
   const appUsage = buildAppUsage(activityLogs);
@@ -75,7 +79,6 @@ export default async function ActivityPage() {
         title="Active apps, websites, and screenshots"
         description="Review the most recent application usage, idle periods, and captured screenshots in one timeline."
       />
-
       <section className="grid gap-4 lg:grid-cols-4">
         <Card className="border-border/70">
           <CardHeader className="pb-2">
@@ -110,8 +113,7 @@ export default async function ActivityPage() {
           </CardContent>
         </Card>
       </section>
-
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid gap-6 xl:grid-cols-[1.1,0.9]">
         <Card className="border-border/70">
           <CardHeader>
             <CardTitle>App usage timeline</CardTitle>
@@ -125,12 +127,19 @@ export default async function ActivityPage() {
                       <p className="font-medium">{app.app}</p>
                       <p className="mt-1 text-sm text-muted-foreground">{app.minutes} tracked minutes</p>
                     </div>
-                    <Badge variant={index < 2 ? "success" : "secondary"}>{Math.max(1, app.minutes)}m</Badge>
+                    <Badge variant={index < 2 ? "success" : "secondary"}>
+                      {Math.max(1, app.minutes)}m
+                    </Badge>
                   </div>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-500"
-                      style={{ width: `${Math.min(100, Math.max(10, (app.minutes / Math.max(appUsage[0]?.minutes ?? 1, 1)) * 100))}%` }}
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          Math.max(10, (app.minutes / Math.max(appUsage[0]?.minutes ?? 1, 1)) * 100)
+                        )}%`,
+                      }}
                     />
                   </div>
                 </div>
@@ -142,14 +151,13 @@ export default async function ActivityPage() {
             )}
           </CardContent>
         </Card>
-
         <Card className="border-border/70">
           <CardHeader>
             <CardTitle>Screenshot timeline</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {latestScreenshots.length > 0 ? (
-              latestScreenshots.map((shot) => (
+              latestScreenshots.map((shot: Screenshot & { user: User }) => (
                 <div key={shot.id} className="rounded-2xl border border-border bg-background/70 p-4">
                   <div className="flex items-center justify-between gap-4">
                     <p className="font-medium">{format(shot.capturedAt, "HH:mm")}</p>
@@ -168,14 +176,13 @@ export default async function ActivityPage() {
           </CardContent>
         </Card>
       </div>
-
       <Card className="border-border/70">
         <CardHeader>
           <CardTitle>Idle notes</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
           <p>
-            Idle sessions are measured from the desktop tracker and synced in near real time.{" "}
+            Idle sessions are measured from the desktop tracker and synced in near real time.{' '}
             {lowActivityCount > 0
               ? `${lowActivityCount} windows crossed the 15-minute idle threshold in the current workspace.`
               : "No idle windows crossed the 15-minute warning threshold yet."}

@@ -20,18 +20,19 @@ import {
   type MonthWeekFilter
 } from "@/lib/activity-periods";
 import { cn, formatDuration, formatPercent } from "@/lib/utils";
+import type { ActivityLog, TimeEntry } from "@prisma/client";
 
 const periodOptions: Array<{ value: ActivityPeriod; label: string }> = [
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },
-  { value: "monthly", label: "Monthly" }
+  { value: "monthly", label: "Monthly" },
 ];
 
 const monthWeekOptions: Array<{ value: MonthWeekFilter; label: string }> = [
   { value: "week1", label: "Week 1" },
   { value: "week2", label: "Week 2" },
   { value: "week3", label: "Week 3" },
-  { value: "week4", label: "Week 4" }
+  { value: "week4", label: "Week 4" },
 ];
 
 type SearchParams = {
@@ -58,7 +59,12 @@ export default async function EmployeeAnalyticsPage(props: {
   const monthWeek = normalizeMonthWeekFilter(searchParams.week);
   const defaultWeek = getCurrentMonthWeekFilter(now);
   const selectedWeek = period === "weekly" ? monthWeek : "all";
-  const activeWeek = period === "weekly" ? (selectedWeek === "all" ? defaultWeek : selectedWeek) : "all";
+  const activeWeek = period === "weekly"
+    ? selectedWeek === "all"
+      ? defaultWeek
+      : selectedWeek
+    : "all";
+
   const monthlyRange = getActivityPeriodRange("monthly", now);
   const selectedRange =
     period === "weekly"
@@ -66,6 +72,7 @@ export default async function EmployeeAnalyticsPage(props: {
       : period === "monthly"
         ? monthlyRange
         : getActivityPeriodRange(period, now);
+
   const selectedRangeEnd = selectedRange.end.getTime() > now.getTime() ? now : selectedRange.end;
   const activityLogCutoff = subHours(now, 24);
   const periodLabel =
@@ -82,14 +89,14 @@ export default async function EmployeeAnalyticsPage(props: {
         userId: context.profile.id,
         startedAt: {
           gte: selectedRange.start,
-          lte: selectedRangeEnd
-        }
+          lte: selectedRangeEnd,
+        },
       },
       orderBy: { startedAt: "desc" },
       include: {
         project: true,
-        task: true
-      }
+        task: true,
+      },
     }),
     prisma.activityLog.findMany({
       where: {
@@ -97,22 +104,23 @@ export default async function EmployeeAnalyticsPage(props: {
         userId: context.profile.id,
         capturedAt: {
           gte: activityLogCutoff,
-          lte: selectedRangeEnd
-        }
+          lte: selectedRangeEnd,
+        },
       },
       orderBy: { capturedAt: "desc" },
-      take: 60
-    })
+      take: 60,
+    }),
   ]);
 
   const snapshot = buildActivitySnapshot(timeEntries, period, selectedRangeEnd, {
     label: periodLabel,
     rangeStart: selectedRange.start,
-    rangeEnd: selectedRangeEnd
+    rangeEnd: selectedRangeEnd,
   });
+
   const trendData = snapshot.buckets;
   const lowActivityWindows = activityLogs
-    .filter((log) => log.idleSeconds > 15 * 60)
+    .filter((log: ActivityLog) => log.idleSeconds > 15 * 60)
     .map((log) => format(log.capturedAt, "h:mm a"))
     .slice(0, 4);
 
@@ -122,7 +130,6 @@ export default async function EmployeeAnalyticsPage(props: {
     if (nextPeriod === "weekly") {
       params.set("week", nextWeek);
     }
-
     const query = params.toString();
     return query ? `/employee/analytics?${query}` : "/employee/analytics";
   }
@@ -242,12 +249,8 @@ export default async function EmployeeAnalyticsPage(props: {
                 ? `Low activity windows: ${lowActivityWindows.join(", ")}`
                 : "No idle windows crossed the warning threshold in this period."}
             </p>
-            <p>
-              Daily target: 3 credits. Weekly target: 72 credits. Monthly target: 280 credits.
-            </p>
-            <p>
-              Activity logs are only kept in the current 24-hour window so the dashboard stays fast and smooth.
-            </p>
+            <p>Daily target: 3 credits. Weekly target: 72 credits. Monthly target: 280 credits.</p>
+            <p>Activity logs are only kept in the current 24-hour window so the dashboard stays fast and smooth.</p>
           </CardContent>
         </Card>
       </section>

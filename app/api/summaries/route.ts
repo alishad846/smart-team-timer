@@ -5,6 +5,7 @@ import { buildAiSummary } from "@/lib/analytics";
 import { jsonWithCookies } from "@/lib/http";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { summarizeTimeEntries } from "@/lib/time-metrics";
+import { TimeEntry, ActivityLog } from "@prisma/client";
 
 export async function POST(request: NextRequest) {
   const response = NextResponse.next();
@@ -16,26 +17,29 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const organizationId = (body.organizationId as string | undefined) ?? context.organization.id;
-  const userId = (body.userId as string | undefined) ?? context.profile.id;
+  const userId = (body.userId as string) ?? context.profile.id;
 
-  const [timeEntries, activityLogs] = await Promise.all([
+  const [timeEntriesRaw, activityLogsRaw] = await Promise.all([
     prisma.timeEntry.findMany({
       where: { organizationId, userId },
       take: 50,
-      orderBy: { startedAt: "desc" }
+      orderBy: { startedAt: "desc" },
     }),
     prisma.activityLog.findMany({
       where: {
         organizationId,
         userId,
         capturedAt: {
-          gte: subHours(new Date(), 24)
-        }
+          gte: subHours(new Date(), 24),
+        },
       },
       take: 60,
-      orderBy: { capturedAt: "desc" }
-    })
+      orderBy: { capturedAt: "desc" },
+    }),
   ]);
+
+  const timeEntries = timeEntriesRaw as TimeEntry[];
+const activityLogs = activityLogsRaw as ActivityLog[];
 
   const { productiveMinutes, idleMinutes } = summarizeTimeEntries(timeEntries);
   const focusSessions = timeEntries.filter((entry) => entry.totalSeconds >= 25 * 60).length;
@@ -50,7 +54,7 @@ export async function POST(request: NextRequest) {
     idleMinutes,
     focusSessions,
     appSwitches,
-    lowActivityWindows
+    lowActivityWindows,
   });
 
   const stored = await prisma.dailySummary.create({
@@ -61,8 +65,8 @@ export async function POST(request: NextRequest) {
       summaryDate: new Date(),
       summaryText: summary.summary,
       productivityScore: summary.score,
-      insightsJson: summary.insights
-    }
+      insightsJson: summary.insights,
+    },
   });
 
   return jsonWithCookies(response, { summary: stored });

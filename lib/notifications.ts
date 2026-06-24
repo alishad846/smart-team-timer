@@ -96,7 +96,7 @@ export async function listNotifications(organizationId: string, take = 50, userI
     }
   });
 
-  return notifications.map((n) => ({
+  return notifications.map((n: any) => ({
     id: n.id,
     organizationId: n.organizationId,
     createdById: n.createdById,

@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import type { EmployeeTimeEntry } from "@/lib/employee-dashboard";
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ActivityTimeline } from "@/components/employee/activity-timeline";
@@ -8,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { getWorkspaceContext } from "@/lib/workspace";
 import { loadEmployeeDashboardData } from "@/lib/employee-dashboard";
 import { formatDuration } from "@/lib/utils";
+
 
 export default async function EmployeeActivityPage() {
   const context = await getWorkspaceContext();
@@ -26,7 +28,7 @@ export default async function EmployeeActivityPage() {
   });
   // Provide the last 48 hours of entries so the client can filter based on local browser time
   const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
-  const recentEntries = data.timeEntries.filter((entry) => entry.startedAt >= cutoff);
+  const recentEntries = data.timeEntries.filter((entry: EmployeeTimeEntry) => entry.startedAt >= cutoff);
 
   return (
     <div className="space-y-8">
@@ -37,7 +39,7 @@ export default async function EmployeeActivityPage() {
       />
 
       <IdleWarning
-        enabled={context.membership.consentStatus === "ACCEPTED" && data.timeEntries.some((entry) => entry.status === "RUNNING")}
+        enabled={context.membership.consentStatus === "ACCEPTED" && data.timeEntries.some((entry: EmployeeTimeEntry) => entry.status === "RUNNING")}
       />
 
       <ActivityTimeline
@@ -62,7 +64,7 @@ export default async function EmployeeActivityPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.timeEntries.slice(0, 8).map((entry) => (
+                {data.timeEntries.slice(0, 8).map((entry: EmployeeTimeEntry) => (
                   <TableRow key={entry.id}>
                     <TableCell>{format(entry.startedAt, "MMM d")}</TableCell>
                     <TableCell>{entry.project?.name ?? "No project"}</TableCell>
