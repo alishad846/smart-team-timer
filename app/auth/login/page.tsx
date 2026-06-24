@@ -4,8 +4,14 @@ import { AuthForm } from "@/components/auth/auth-form";
 import { redirect } from "next/navigation";
 
 export default async function LoginPage() {
+  let user = null;
   const supabase = await createServerSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch (e) {
+    console.error('Failed to get user:', e);
+  }
   if (user) {
     redirect("/dashboard");
   }

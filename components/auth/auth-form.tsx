@@ -84,6 +84,9 @@ export function AuthForm({ mode }: AuthFormProps) {
 
       router.push(next as any);
       router.refresh();
+      if (typeof window !== 'undefined') {
+        window.location.href = next as string;
+      }
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Authentication failed");
     } finally {
