@@ -1,11 +1,12 @@
+import { createServerSupabase } from "@/lib/supabase/server";
 import { Suspense } from "react";
 import { AuthForm } from "@/components/auth/auth-form";
-import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
 export default async function LoginPage() {
-  const current = await getCurrentUser();
-  if (current) {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
     redirect("/dashboard");
   }
 
