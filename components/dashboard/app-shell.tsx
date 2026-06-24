@@ -76,7 +76,8 @@ export function AppShell({
   async function handleLogout() {
     setLoggingOut(true);
     try {
-      await supabase.auth.signOut();
+      const { logoutAction } = await import("@/app/auth/actions");
+      await logoutAction();
       router.replace("/auth/login");
       router.refresh();
     } finally {

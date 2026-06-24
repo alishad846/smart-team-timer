@@ -31,62 +31,31 @@ export function AuthForm({ mode }: AuthFormProps) {
     setError(null);
 
     try {
-      if (mode === "register") {
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: fullName }
-          }
-        });
-        if (signUpError) throw signUpError;
+      const formData = new FormData();
+      formData.append("email", email);
+      formData.append("password", password);
 
-        if (!data.session) {
-          setError("Check your email to confirm the account, then sign in.");
+      if (mode === "register") {
+        formData.append("fullName", fullName);
+        const { registerAction } = await import("@/app/auth/actions");
+        const result = await registerAction(formData);
+        
+        if (result?.error) throw new Error(result.error);
+        if (result?.message) {
+          setError(result.message);
           return;
         }
       } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-
-        if (signInError) {
-          const isInvalidCredentials = signInError.message.toLowerCase().includes("invalid login credentials");
-
-          if (isInvalidCredentials) {
-            const bootstrapResponse = await fetch("/api/auth/bootstrap-admin", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({ email, password })
-            });
-
-            if (bootstrapResponse.ok) {
-              router.push(next as any);
-              router.refresh();
-              return;
-            }
-
-            const payload = (await bootstrapResponse.json().catch(() => null)) as
-              | { error?: string }
-              | null;
-
-            if (payload?.error) {
-              throw new Error(payload.error);
-            }
-          }
-
-          throw signInError;
-        }
+        const { loginAction } = await import("@/app/auth/actions");
+        const result = await loginAction(formData);
+        
+        if (result?.error) throw new Error(result.error);
       }
 
       // Navigate to the target page without adding to history
       router.replace(next as any);
       // Refresh to ensure any server side data is revalidated
       router.refresh();
-      // No manual window.location redirect needed; Next.js router handles it
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Authentication failed");
     } finally {
