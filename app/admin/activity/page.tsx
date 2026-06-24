@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { redirect } from "next/navigation";
+import { subHours } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { summarizeTimeEntries } from "@/lib/time-metrics";
 import { getWorkspaceContext } from "@/lib/workspace";
@@ -26,67 +28,44 @@ export default async function AdminActivityPage() {
     prisma.teamMember.findMany({
       where: { organizationId: context.organization.id },
       include: { user: true, team: true },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
     }),
     prisma.timeEntry.findMany({
       where: { organizationId: context.organization.id },
       include: { user: true },
-      orderBy: { startedAt: "desc" }
+      orderBy: { startedAt: "desc" },
     }),
     prisma.activityLog.findMany({
       where: {
         organizationId: context.organization.id,
-        capturedAt: {
-          gte: subHours(new Date(), 24)
-        }
+        capturedAt: { gte: subHours(new Date(), 24) },
       },
       include: { user: true },
       orderBy: { capturedAt: "desc" },
-      take: 60
+      take: 60,
     }),
     prisma.screenshot.findMany({
       where: { organizationId: context.organization.id },
       include: { user: true },
       orderBy: { capturedAt: "desc" },
-      take: 8
-    })
+      take: 8,
+    }),
   ]);
 
   const { totalTrackedHours, productiveMinutes, idleMinutes, productivityScore } = summarizeTimeEntries(timeEntries);
   const lowActivityCount = activityLogs.filter((log: ActivityLog) => log.idleSeconds > 15 * 60).length;
 
-  const memberStats = members
-    .map((member: TeamMember) => {
-      const employeeEntries = timeEntries.filter((entry: TimeEntry) => entry.userId === member.userId);
-      const productive = employeeEntries.reduce((sum, entry) => sum + entry.productiveSeconds, 0);
-      const idle = employeeEntries.reduce((sum, entry) => sum + entry.idleSeconds, 0);
-      const score = productive + idle > 0 ? Math.round((productive / (productive + idle)) * 100) : 0;
-
-      return {
-        id: member.userId,
-        name: member.user.fullName,
-        team: member.team?.name ?? "Unassigned",
-        githubUsername: member.user.githubUsername,
-        score,
-        consentStatus: member.consentStatus,
-        lastSeen: employeeEntries[0]?.startedAt ?? null
-      };
-    })
-    .sort((left, right) => right.score - left.score);
-
-  return (
-    <div className="space-y-8">
-      <PageHeader
-        badge="Activity monitoring"
-        title="Inspect workspace activity"
-        description="Open a person's detail page to review their time entries, screenshots, and app usage."
-      />
-
-      <section className="grid gap-4 lg:grid-cols-4">
-        <Card className="border-border/70">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Tracked hours</CardTitle>
-          </CardHeader>
+const memberStats = members
+  .map((member: TeamMember) => {
+    const employeeEntries = timeEntries.filter((entry: TimeEntry) => entry.userId === member.userId);
+    const productive = employeeEntries.reduce((sum, entry) => sum + entry.productiveSeconds, 0);
+    const idle = employeeEntries.reduce((sum, entry) => sum + entry.idleSeconds, 0);
+    const score = productive + idle > 0 ? Math.round((productive / (productive + idle)) * 100) : 0;
+    return {
+      id: member.userId,
+      name: member.user.fullName,
+      team: member.team?.name ?? "Unassigned",
+      githubUsername: member.user.githubUsername,
           <CardContent>
             <p className="text-3xl font-semibold">{totalTrackedHours.toFixed(1)}h</p>
           </CardContent>
