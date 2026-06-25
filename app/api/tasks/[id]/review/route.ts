@@ -15,7 +15,7 @@ export async function POST(
   }
 
   // Allow only TESTER or ADMIN roles to approve/reject tasks
-  if (context.profile.role !== "TESTER" && context.workspaceRole !== "admin") {
+  if (context.membership.role !== "TESTER" && context.workspaceRole !== "admin") {
     return jsonWithCookies(response, { error: "Only testers can review tasks" }, { status: 403 });
   }
 

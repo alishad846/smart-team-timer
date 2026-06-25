@@ -22,9 +22,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return jsonWithCookies(response, { error: "Unauthorized" }, { status: 401 });
   }
 
-  if (context.profile.role !== "OWNER" && context.profile.role !== "MANAGER") {
-    return jsonWithCookies(response, { error: "Forbidden" }, { status: 403 });
-  }
+
 
   const { projectId } = await params;
   const body = await request.json();
@@ -44,6 +42,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   if (!membership) {
     return jsonWithCookies(response, { error: "No organization found" }, { status: 404 });
+  }
+
+  if (membership.role !== "OWNER" && membership.role !== "MANAGER") {
+    return jsonWithCookies(response, { error: "Forbidden" }, { status: 403 });
   }
 
   const existingProject = await prisma.project.findFirst({

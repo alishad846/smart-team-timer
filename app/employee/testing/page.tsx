@@ -15,7 +15,7 @@ export default async function TestingPage() {
     redirect("/admin");
   }
 
-  if (context.profile.role !== "TESTER") {
+  if (context.membership.role !== "TESTER") {
     redirect("/employee/workspace");
   }
 

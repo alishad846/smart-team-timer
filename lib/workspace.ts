@@ -168,7 +168,7 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(): P
     profile: ensuredProfile,
     organization,
     membership,
-    workspaceRole: ensuredProfile.role === Role.OWNER || ensuredProfile.role === Role.MANAGER ? "admin" : "employee"
+    workspaceRole: membership.role === Role.OWNER || membership.role === Role.MANAGER ? "admin" : "employee"
   };
 });
 

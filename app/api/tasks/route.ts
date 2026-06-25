@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Check if non-admin is team lead of project's team
-  const isAdmin = context.profile.role === "OWNER" || context.profile.role === "MANAGER";
+  const isAdmin = membership.role === "OWNER" || membership.role === "MANAGER";
   if (!isAdmin) {
     if (!project.teamId) {
       return jsonWithCookies(
