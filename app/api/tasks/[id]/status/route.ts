@@ -24,6 +24,13 @@ export async function PATCH(
       project: {
         organizationId: context.organization.id
       }
+    },
+    include: {
+      project: {
+        include: {
+          team: true
+        }
+      }
     }
   });
 
@@ -32,12 +39,32 @@ export async function PATCH(
   }
 
   const body = await request.json().catch(() => ({}));
-  const status = body.status === "DONE" ? "DONE" : "TODO";
+  
+  const allowedStatuses = ["TODO", "IN_PROGRESS", "REVIEW"];
+  let status = body.status;
+  if (!allowedStatuses.includes(status)) {
+    status = "TODO";
+  }
 
   const updatedTask = await prisma.task.update({
     where: { id: task.id },
     data: { status }
   });
+
+  if (status === "REVIEW" && task.status !== "REVIEW") {
+    const leaderId = task.project?.team?.leaderId;
+    await prisma.notification.create({
+      data: {
+        organizationId: context.organization.id,
+        createdById: context.profile.id,
+        recipientUserId: leaderId || undefined,
+        title: "Task ready for review",
+        message: `The task "${task.title}" has been moved to Testing/Review by ${context.profile.fullName || 'a team member'}.`,
+        kind: "ANNOUNCEMENT",
+        audience: "TEAM"
+      }
+    });
+  }
 
   return jsonWithCookies(response, { task: updatedTask }, { status: 200 });
 }

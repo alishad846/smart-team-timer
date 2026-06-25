@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Plus, Users, ShieldAlert, Check, Trash2 } from "lucide-react";
+import { Loader2, Plus, Users, ShieldAlert, Check, Trash2, Pencil, X } from "lucide-react";
 
 type UserOption = {
   id: string;
@@ -77,6 +77,11 @@ export function TeamsClient({ initialTeams, initialMembers, organizationId }: Te
   const [deletingTeamId, setDeletingTeamId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Inline team editing
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
 
   // Eligible leaders: non-removed employees/interns/managers in organization
   const eligibleLeaders = members
@@ -152,6 +157,44 @@ export function TeamsClient({ initialTeams, initialMembers, organizationId }: Te
       setActionError(err instanceof Error ? err.message : "Could not delete team");
     } finally {
       setDeletingTeamId(null);
+    }
+  }
+
+  async function handleUpdateTeam(teamId: string) {
+    if (!editName.trim()) {
+      setActionError("Team name cannot be empty.");
+      return;
+    }
+    
+    setUpdatingTeamId(teamId);
+    setActionError(null);
+    setActionMessage(null);
+
+    try {
+      const response = await fetch(`/api/teams/${teamId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: editName.trim(),
+          description: editDescription.trim()
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to update team");
+      }
+
+      setTeams((prev) => prev.map((t) => (t.id === teamId ? { ...t, name: data.team.name, description: data.team.description } : t)));
+      setEditingTeamId(null);
+      setActionMessage(`Team "${data.team.name}" updated successfully.`);
+      router.refresh();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not update team");
+    } finally {
+      setUpdatingTeamId(null);
     }
   }
 
@@ -363,33 +406,72 @@ export function TeamsClient({ initialTeams, initialMembers, organizationId }: Te
               {teams.map((team) => (
                 <Card key={team.id} className="border-border/70 flex flex-col justify-between">
                   <CardHeader className="pb-3">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-xl">{team.name}</CardTitle>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {team.description || "No description provided."}
-                        </p>
+                    {editingTeamId === team.id ? (
+                      <div className="space-y-3">
+                        <Input 
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          placeholder="Team name"
+                          className="font-semibold text-lg h-9"
+                        />
+                        <Textarea 
+                          value={editDescription}
+                          onChange={(e) => setEditDescription(e.target.value)}
+                          placeholder="Description (optional)"
+                          rows={2}
+                          className="text-sm resize-none"
+                        />
+                        <div className="flex justify-end gap-2 pt-1">
+                          <Button variant="ghost" size="sm" onClick={() => setEditingTeamId(null)} disabled={updatingTeamId === team.id}>
+                            Cancel
+                          </Button>
+                          <Button size="sm" onClick={() => handleUpdateTeam(team.id)} disabled={updatingTeamId === team.id || !editName.trim()}>
+                            {updatingTeamId === team.id ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Check className="h-4 w-4 mr-1" />} Save
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {updatingTeamId === team.id && (
-                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          disabled={deletingTeamId === team.id}
-                          onClick={() => handleDeleteTeam(team.id, team.name)}
-                          title="Delete team"
-                        >
-                          {deletingTeamId === team.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
+                    ) : (
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-xl">{team.name}</CardTitle>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {team.description || "No description provided."}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {updatingTeamId === team.id && (
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
                           )}
-                        </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => {
+                              setEditingTeamId(team.id);
+                              setEditName(team.name);
+                              setEditDescription(team.description || "");
+                            }}
+                            title="Edit team"
+                          >
+                            <Pencil className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            disabled={deletingTeamId === team.id}
+                            onClick={() => handleDeleteTeam(team.id, team.name)}
+                            title="Delete team"
+                          >
+                            {deletingTeamId === team.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </CardHeader>
                   <CardContent className="space-y-4 pt-0">
                     <div className="space-y-1.5">

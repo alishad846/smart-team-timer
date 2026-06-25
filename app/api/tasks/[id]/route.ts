@@ -32,11 +32,19 @@ export async function DELETE(
       return jsonWithCookies(response, { error: "Forbidden" }, { status: 403 });
     }
 
-    // Only Admins can delete tasks
-    if (context.workspaceRole !== "admin") {
+    // Only Admins and Team Leads can delete tasks
+    let isTeamLead = false;
+    if (task.project?.teamId) {
+      const team = await prisma.team.findFirst({
+        where: { id: task.project.teamId, leaderId: context.profile.id }
+      });
+      if (team) isTeamLead = true;
+    }
+
+    if (context.workspaceRole !== "admin" && !isTeamLead) {
       return jsonWithCookies(
         response,
-        { error: "Only administrators can delete tasks" },
+        { error: "Only administrators or team leads can delete tasks" },
         { status: 403 }
       );
     }

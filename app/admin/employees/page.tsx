@@ -88,7 +88,7 @@ export default async function AdminEmployeesPage() {
         </Card>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+      <div className="space-y-8">
         <InviteEmployeeForm teams={teams.map((team: Team) => ({ id: team.id, name: team.name }))} />
 
         <Card className="border-border/70">
@@ -96,65 +96,67 @@ export default async function AdminEmployeesPage() {
             <CardTitle>Member directory</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>GitHub</TableHead>
-                  <TableHead>Team</TableHead>
-                  <TableHead>Consent</TableHead>
-                  <TableHead>Leaves</TableHead>
-                  <TableHead>Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                 {members.filter((m: MemberWithRelations) => m.status !== "REMOVED").map((member: MemberWithRelations) => {
-                  const userLeaves = approvedLeaves.filter((leave: Notification) => leave.createdById === member.userId);
-                  const now = new Date();
-                  const isOnLeaveNow = userLeaves.some((leave: Notification) => {
-                    if (!leave.requestStartAt || !leave.requestEndAt) return false;
-                    const start = new Date(leave.requestStartAt);
-                    const end = new Date(leave.requestEndAt);
-                    return now >= start && now <= end;
-                  });
+            <div className="max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>GitHub</TableHead>
+                    <TableHead>Team</TableHead>
+                    <TableHead>Consent</TableHead>
+                    <TableHead>Leaves</TableHead>
+                    <TableHead>Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                   {members.filter((m: MemberWithRelations) => m.status !== "REMOVED").map((member: MemberWithRelations) => {
+                    const userLeaves = approvedLeaves.filter((leave: Notification) => leave.createdById === member.userId);
+                    const now = new Date();
+                    const isOnLeaveNow = userLeaves.some((leave: Notification) => {
+                      if (!leave.requestStartAt || !leave.requestEndAt) return false;
+                      const start = new Date(leave.requestStartAt);
+                      const end = new Date(leave.requestEndAt);
+                      return now >= start && now <= end;
+                    });
 
-                  return (
-                    <TableRow key={member.id}>
-                      <TableCell className="font-medium">{member.user.fullName}</TableCell>
-                      <TableCell>{member.user.email}</TableCell>
-                      <TableCell>{member.user.githubUsername ? `@${member.user.githubUsername}` : "—"}</TableCell>
-                      <TableCell>{member.team?.name ?? "Unassigned"}</TableCell>
-                      <TableCell>
-                        <Badge variant={member.consentStatus === "ACCEPTED" ? "success" : "warning"}>
-                          {member.consentStatus}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold">{userLeaves.length} leave{userLeaves.length === 1 ? "" : "s"}</span>
-                          {isOnLeaveNow ? (
-                            <Badge variant="outline" className="bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/20">
-                              On Leave
-                            </Badge>
-                          ) : (
-                            <Badge variant="success">
-                              Active
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="space-x-2">
-                        <Button asChild variant="outline" size="sm">
-                          <Link href={`/admin/activity/${member.userId}`}>Open activity</Link>
-                        </Button>
-                        <RemoveEmployeeButton memberId={member.id} memberName={member.user.fullName} />
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                    return (
+                      <TableRow key={member.id}>
+                        <TableCell className="font-medium">{member.user.fullName}</TableCell>
+                        <TableCell>{member.user.email}</TableCell>
+                        <TableCell>{member.user.githubUsername ? `@${member.user.githubUsername}` : "—"}</TableCell>
+                        <TableCell>{member.team?.name ?? "Unassigned"}</TableCell>
+                        <TableCell>
+                          <Badge variant={member.consentStatus === "ACCEPTED" ? "success" : "warning"}>
+                            {member.consentStatus}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">{userLeaves.length} leave{userLeaves.length === 1 ? "" : "s"}</span>
+                            {isOnLeaveNow ? (
+                              <Badge variant="outline" className="bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/20">
+                                On Leave
+                              </Badge>
+                            ) : (
+                              <Badge variant="success">
+                                Active
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="space-x-2">
+                          <Button asChild variant="outline" size="sm">
+                            <Link href={`/admin/activity/${member.userId}`}>Open activity</Link>
+                          </Button>
+                          <RemoveEmployeeButton memberId={member.id} memberName={member.user.fullName} />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>

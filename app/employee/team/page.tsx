@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import type { Team, TeamMember, TimeEntry, Project, Task } from "@prisma/client";
-import { startOfDay, subHours, format } from "date-fns";
+import { startOfDay, endOfDay, subHours, format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDuration } from "@/lib/utils";
 import { Users, Clock, Radio, Activity } from "lucide-react";
 import { TeamLeadTaskForm } from "@/components/employee/team-lead-task-form";
+import { TeamMemberActivityModal } from "@/components/employee/team-member-activity-modal";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +73,7 @@ export default async function TeamLeadPage() {
   });
 
   // Fetch relevant today's progress & status data for team members
-  const [runningEntries, todayEntries, latestLogs] = await Promise.all([
+  const [runningEntries, todayEntries, latestLogs, activeTasks, approvedLeaves] = await Promise.all([
     // Currently active timers
     prisma.timeEntry.findMany({
       where: {
@@ -102,6 +103,28 @@ export default async function TeamLeadPage() {
         }
       },
       orderBy: { capturedAt: "desc" }
+    }),
+    // Active tasks assigned to these members
+    prisma.task.findMany({
+      where: {
+        assigneeId: { in: teamMemberIds },
+        status: { not: "DONE" }
+      },
+      include: {
+        project: true
+      },
+      orderBy: { createdAt: "desc" }
+    }),
+    // Approved leave requests for today
+    prisma.notification.findMany({
+      where: {
+        createdById: { in: teamMemberIds },
+        kind: "REQUEST",
+        requestStatus: "APPROVED",
+        title: { contains: "leave", mode: "insensitive" },
+        requestStartAt: { lte: endOfDay(new Date()) },
+        requestEndAt: { gte: startOfDay(new Date()) }
+      }
     })
   ]);
 
@@ -121,6 +144,18 @@ export default async function TeamLeadPage() {
       latestLogByUserId.set(log.userId, log);
     }
   }
+
+  // Group tasks by assigneeId
+  const tasksByUserId = new Map<string, (typeof activeTasks)>();
+  for (const task of activeTasks) {
+    if (!task.assigneeId) continue;
+    const existing = tasksByUserId.get(task.assigneeId) || [];
+    existing.push(task);
+    tasksByUserId.set(task.assigneeId, existing);
+  }
+
+  // Set of user IDs currently on leave
+  const membersOnLeave = new Set(approvedLeaves.map(l => l.createdById).filter(Boolean) as string[]);
 
   // Calculate team wide metrics
   const activeMembersCount = runningEntries.length;
@@ -196,23 +231,24 @@ export default async function TeamLeadPage() {
                         <TableHead>Status</TableHead>
                         <TableHead>Current Task</TableHead>
                         <TableHead>Today's Time</TableHead>
-                        <TableHead>Keyboard / Mouse</TableHead>
-                        <TableHead>Last App / Window Activity</TableHead>
+                        <TableHead>Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {teamMembers.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center py-6 text-muted-foreground text-sm">
+                          <TableCell colSpan={5} className="text-center py-6 text-muted-foreground text-sm">
                             No active members in this team.
                           </TableCell>
                         </TableRow>
                       ) : (
                         teamMembers.map((member) => {
                           const isWorking = runningEntriesByUserId.has(member.userId);
+                          const isOnLeave = membersOnLeave.has(member.userId);
                           const currentEntry = runningEntriesByUserId.get(member.userId);
                           const todayMinutes = todayMinutesByUserId.get(member.userId) ?? 0;
                           const latestLog = latestLogByUserId.get(member.userId);
+                          const memberTasks = tasksByUserId.get(member.userId) || [];
 
                           return (
                             <TableRow key={member.id}>
@@ -223,7 +259,11 @@ export default async function TeamLeadPage() {
                                 </div>
                               </TableCell>
                               <TableCell>
-                                {isWorking ? (
+                                {isOnLeave ? (
+                                  <Badge variant="warning" className="w-fit">
+                                    On Leave
+                                  </Badge>
+                                ) : isWorking ? (
                                   <Badge variant="success" className="flex items-center gap-1.5 w-fit">
                                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
                                     Active
@@ -252,36 +292,7 @@ export default async function TeamLeadPage() {
                                 <span className="font-semibold text-sm">{formatDuration(todayMinutes)}</span>
                               </TableCell>
                               <TableCell>
-                                {latestLog ? (
-                                  <div className="text-xs space-y-1">
-                                    <div className="flex justify-between w-24">
-                                      <span>Keyboard:</span>
-                                      <span className="font-medium">{latestLog.keyboardPercent}%</span>
-                                    </div>
-                                    <div className="flex justify-between w-24">
-                                      <span>Mouse:</span>
-                                      <span className="font-medium">{latestLog.mousePercent}%</span>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">—</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="max-w-[240px] truncate">
-                                {latestLog ? (
-                                  <div>
-                                    <span className="text-xs font-medium block truncate">
-                                      {latestLog.activeApp}
-                                    </span>
-                                    {latestLog.activeWindow ? (
-                                      <span className="text-[10px] text-muted-foreground block truncate">
-                                        {latestLog.activeWindow}
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">—</span>
-                                )}
+                                <TeamMemberActivityModal latestLog={latestLog} tasks={memberTasks} />
                               </TableCell>
                             </TableRow>
                           );

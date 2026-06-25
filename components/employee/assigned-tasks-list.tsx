@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2 } from "lucide-react";
 
@@ -18,13 +18,13 @@ export function AssignedTasksList({ tasks }: { tasks: AssignedTask[] }) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  async function markAsDone(taskId: string) {
+  async function updateTaskStatus(taskId: string, newStatus: string) {
     setLoadingId(taskId);
     try {
       const response = await fetch(`/api/tasks/${taskId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "DONE" })
+        body: JSON.stringify({ status: newStatus })
       });
       if (response.ok) {
         router.refresh();
@@ -55,19 +55,22 @@ export function AssignedTasksList({ tasks }: { tasks: AssignedTask[] }) {
                 <p className="mt-1 text-sm text-muted-foreground">{task.projectName}</p>
               </div>
               <div className="flex items-center gap-3">
-                <Badge variant={task.status === "DONE" ? "default" : "secondary"}>
-                  {task.status}
-                </Badge>
                 {task.status !== "DONE" ? (
-                  <Button
-                    size="sm"
+                  <Select
+                    value={task.status}
+                    onChange={(e) => updateTaskStatus(task.id, e.target.value)}
                     disabled={loadingId === task.id}
-                    onClick={() => markAsDone(task.id)}
+                    className="w-[140px] h-9"
                   >
-                    {loadingId === task.id ? "Updating..." : "Mark as Done"}
-                  </Button>
+                    <option value="TODO">To Do</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="REVIEW">Testing/Review</option>
+                  </Select>
                 ) : (
-                  <span className="text-xs text-emerald-600 font-medium">✓ Completed</span>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="default">{task.status}</Badge>
+                    <span className="text-xs text-emerald-600 font-medium">✓ Completed</span>
+                  </div>
                 )}
               </div>
             </div>
