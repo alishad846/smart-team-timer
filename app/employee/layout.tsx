@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { AppShell, type NavItem } from "@/components/dashboard/app-shell";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { prisma } from "@/lib/prisma";
+import { WebTracker } from "@/components/employee/web-tracker";
 
 const navItems = [
   { href: "/employee/workspace", label: "Workspace", icon: "layoutDashboard" },
@@ -51,6 +52,7 @@ export default async function EmployeeLayout({
       bellHref="/employee/requests"
       notificationScope={context.organization.id}
     >
+      <WebTracker userId={context.profile.id} organizationId={context.organization.id} />
       {children}
     </AppShell>
   );
