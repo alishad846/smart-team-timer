@@ -116,7 +116,7 @@ export default async function EmployeeWorkspacePage() {
             title: task.title,
             projectName: task.projectName,
             status: task.status,
-            description: task.description,
+            description: task.description ?? undefined,
             rejectionReason: (task as any).rejectionReason // Cast because it might not be in the type yet
           }))}
         />
