@@ -1,179 +1,115 @@
 import Link from "next/link";
-import { ArrowRight, BarChart3, Clock3, ShieldCheck, Smartphone, Sparkles, Users2, Shield } from "lucide-react";
+import { ArrowRight, BarChart3, Clock3, ShieldCheck, Smartphone, Sparkles, LayoutDashboard, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 const featureCards = [
   {
     title: "Live timer tracking",
-    description: "Start, stop, and pause work sessions with project-aware timers.",
+    description: "Start, stop, and pause work sessions effortlessly with seamless project-aware timers.",
     icon: Clock3
   },
   {
     title: "Activity monitoring",
-    description: "Monitor app usage, focus sessions, idle time, and website activity.",
+    description: "Gain insights into app usage, focus sessions, and active website activity.",
     icon: Smartphone
   },
   {
     title: "Manager analytics",
-    description: "View productivity scores, weekly trends, screenshots, and reports.",
+    description: "Review productivity scores, weekly trends, and actionable reports at a glance.",
     icon: BarChart3
   },
   {
     title: "Privacy-first controls",
-    description: "Consent settings, transparent tracking, and selective screenshot capture.",
+    description: "Built with transparent tracking, strict consent settings, and user privacy in mind.",
     icon: ShieldCheck
   }
 ];
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-hero-grid">
-      <section className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-10 lg:px-10">
-        <header className="flex items-center justify-between">
+    <main className="min-h-screen bg-black overflow-hidden relative selection:bg-primary/30">
+      {/* Abstract Background Gradients */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-sky-600/20 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-600/20 blur-[120px] pointer-events-none" />
+      
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-8 lg:px-10 relative z-10">
+        
+        {/* Navigation */}
+        <header className="flex items-center justify-between animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-glow">
-              <Sparkles className="h-5 w-5" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-500 text-white shadow-lg shadow-sky-500/20">
+              <Sparkles className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-sm font-semibold">SmartTeamTimer</p>
-              <p className="text-xs text-muted-foreground">Productivity operations for modern teams</p>
+              <p className="text-base font-bold text-white tracking-tight">SmartTeamTimer</p>
+              <p className="text-xs text-slate-400 font-medium">Modern team productivity</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <Link
-              href="/auth/login?next=/employee/workspace"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground"
+              href="/auth/login"
+              className="text-sm font-semibold text-slate-300 hover:text-white transition-colors"
             >
               Sign in
             </Link>
-            <Button asChild className="hidden md:inline-flex">
+            <Button asChild className="hidden md:inline-flex bg-white text-black hover:bg-slate-200 rounded-full px-6 font-semibold shadow-xl shadow-white/10 transition-all hover:scale-105 duration-300">
               <Link href="/auth/register">Create workspace</Link>
             </Button>
           </div>
         </header>
 
-        <div className="grid flex-1 items-center gap-16 py-16 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="max-w-3xl">
-            <Badge variant="secondary" className="w-fit">
-              MVP-ready team productivity platform
-            </Badge>
-            <h1 className="mt-6 text-5xl font-semibold tracking-tight text-white md:text-7xl">
-              Track productivity without losing trust.
-            </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-              SmartTeamTimer gives managers a clear view of time tracking, activity, projects, screenshots, and
-              weekly trends, while giving employees a fast timer, personal analytics, and transparent consent controls.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-4">
-              <Button asChild>
-                <Link href="/auth/login?next=/employee/workspace" className="inline-flex items-center gap-2">
-                  Employee sign in
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-              <Button variant="outline" asChild className="border-white/10 bg-white/5 text-white hover:bg-white/10">
-                <Link href="/auth/login?next=/admin">Admin sign in</Link>
-              </Button>
-            </div>
-
-            <div className="mt-8 grid gap-4 md:grid-cols-2">
-              <Card className="border-white/10 bg-white/5 backdrop-blur">
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-2 text-sm font-medium text-white">
-                    <Users2 className="h-4 w-4 text-sky-300" />
-                    Employee workspace
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-slate-300">
-                    Start your timer, choose a task, see your daily analytics, and request help when something is blocked.
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="border-white/10 bg-white/5 backdrop-blur">
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-2 text-sm font-medium text-white">
-                    <Shield className="h-4 w-4 text-emerald-300" />
-                    Admin console
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-slate-300">
-                    Create employees, broadcast updates, inspect activity bursts, and review weekly productivity.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="mt-10 grid gap-4 sm:grid-cols-3">
-              {[
-                { label: "Tracked hours", value: "1.2k+" },
-                { label: "Team members", value: "28" },
-                { label: "Avg. productivity", value: "86%" }
-              ].map((item) => (
-                <Card key={item.label} className="border-white/10 bg-white/5 backdrop-blur">
-                  <CardContent className="p-5">
-                    <div className="text-2xl font-semibold text-white">{item.value}</div>
-                    <p className="mt-1 text-sm text-slate-300">{item.label}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+        {/* Hero Section */}
+        <div className="flex flex-col items-center justify-center flex-1 text-center mt-20 mb-24 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150 fill-mode-both">
+          <Badge variant="outline" className="border-white/10 bg-white/5 text-slate-300 px-4 py-1.5 rounded-full backdrop-blur-md mb-8 text-xs font-medium uppercase tracking-widest">
+            The next generation of team management
+          </Badge>
+          
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-200 to-slate-500 max-w-5xl leading-tight">
+            Track productivity. <br className="hidden md:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-emerald-400">Maintain trust.</span>
+          </h1>
+          
+          <p className="mt-8 max-w-2xl text-lg md:text-xl leading-relaxed text-slate-400 font-medium">
+            A seamless productivity platform that gives managers the clarity they need, and employees the autonomy they deserve.
+          </p>
+          
+          <div className="mt-12 flex items-center justify-center w-full">
+            <Button asChild size="lg" className="h-14 px-8 rounded-full bg-gradient-to-r from-sky-500 to-emerald-500 hover:from-sky-400 hover:to-emerald-400 text-white shadow-lg shadow-emerald-500/25 border-0 text-base font-semibold transition-all hover:scale-105 duration-300 w-full sm:w-auto group">
+              <Link href="/auth/login">
+                Continue to login
+                <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+              </Link>
+            </Button>
           </div>
-
-          <Card className="border-border/70 bg-card/95 shadow-2xl shadow-sky-950/30">
-            <CardHeader>
-              <CardTitle>Productivity command center</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-2xl border border-border bg-muted/40 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Focus score</span>
-                  <span className="text-sm font-medium text-emerald-500">+8% this week</span>
-                </div>
-                <div className="mt-3 h-3 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full w-[86%] rounded-full bg-gradient-to-r from-sky-500 to-emerald-500" />
-                </div>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Card className="border-border bg-background/80">
-                  <CardContent className="p-4">
-                    <p className="text-sm text-muted-foreground">Admin alerts</p>
-                    <p className="mt-2 text-2xl font-semibold">Broadcast ready</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-border bg-background/80">
-                  <CardContent className="p-4">
-                    <p className="text-sm text-muted-foreground">Employee timer</p>
-                    <p className="mt-2 text-2xl font-semibold">Live sync</p>
-                  </CardContent>
-                </Card>
-              </div>
-              <div className="rounded-2xl border border-border bg-background/80 p-4">
-                <p className="text-sm font-medium">AI summary</p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Low activity detected after lunch. Recommend a 45-minute focus block before the daily stand-up.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
-        <section className="grid gap-4 py-10 md:grid-cols-2 xl:grid-cols-4">
-          {featureCards.map((feature) => {
+        {/* Feature Grid */}
+        <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 pb-20 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-300 fill-mode-both">
+          {featureCards.map((feature, index) => {
             const Icon = feature.icon;
             return (
-              <Card key={feature.title} className="border-border/70 bg-card/90 backdrop-blur">
-                <CardContent className="p-6">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                    <Icon className="h-5 w-5" />
+              <Card 
+                key={feature.title} 
+                className="group border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-500 overflow-hidden relative border-t-white/20"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <CardContent className="p-8 relative z-10">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-sky-400 mb-6 group-hover:scale-110 group-hover:text-emerald-400 transition-all duration-500 shadow-inner border border-white/5">
+                    <Icon className="h-6 w-6" />
                   </div>
-                  <h3 className="mt-4 text-lg font-semibold">{feature.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{feature.description}</p>
+                  <h3 className="text-xl font-semibold text-white tracking-tight">{feature.title}</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-slate-400 font-medium">
+                    {feature.description}
+                  </p>
                 </CardContent>
               </Card>
             );
           })}
         </section>
-      </section>
+        
+      </div>
     </main>
   );
 }
