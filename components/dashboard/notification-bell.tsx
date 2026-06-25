@@ -30,36 +30,9 @@ function playNotificationSound() {
     return;
   }
 
-  const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioContextClass) {
-    return;
-  }
-
   try {
-    const audioContext = new AudioContextClass();
-    const gainNode = audioContext.createGain();
-    gainNode.gain.value = 0.0001;
-    gainNode.connect(audioContext.destination);
-
-    const startAt = audioContext.currentTime;
-    const tones = [880, 1175];
-
-    gainNode.gain.setValueAtTime(0.0001, startAt);
-    gainNode.gain.exponentialRampToValueAtTime(0.06, startAt + 0.01);
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.24);
-
-    tones.forEach((frequency, index) => {
-      const oscillator = audioContext.createOscillator();
-      oscillator.type = "sine";
-      oscillator.frequency.value = frequency;
-      oscillator.connect(gainNode);
-      oscillator.start(startAt + index * 0.08);
-      oscillator.stop(startAt + index * 0.08 + 0.12);
-    });
-
-    window.setTimeout(() => {
-      void audioContext.close();
-    }, 600);
+    const audio = new Audio("/notification.mp3");
+    void audio.play();
   } catch {
     // Ignore audio playback failures when the browser blocks autoplay.
   }

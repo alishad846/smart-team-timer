@@ -69,8 +69,8 @@ export function CalendarField({ label, selectedDate, onChange }: CalendarFieldPr
             </Button>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-            {["M", "T", "W", "T", "F", "S", "S"].map((day) => (
-              <span key={day} className="py-1">
+            {["M", "T", "W", "T", "F", "S", "S"].map((day, i) => (
+              <span key={i} className="py-1">
                 {day}
               </span>
             ))}

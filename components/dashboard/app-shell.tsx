@@ -126,13 +126,15 @@ export function AppShell({
             })}
           </nav>
 
-          <div className="mt-auto rounded-3xl border border-border bg-gradient-to-br from-sky-500/15 to-emerald-500/10 p-4">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Bell className="h-4 w-4" />
-              Live pulse
+          {footerNote && (
+            <div className="mt-auto rounded-3xl border border-border bg-gradient-to-br from-sky-500/15 to-emerald-500/10 p-4">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Bell className="h-4 w-4" />
+                Live pulse
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground">{footerNote}</p>
             </div>
-            <p className="mt-3 text-sm text-muted-foreground">{footerNote}</p>
-          </div>
+          )}
         </aside>
 
         <div className="flex min-h-screen flex-col">

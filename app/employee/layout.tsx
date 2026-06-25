@@ -47,7 +47,6 @@ export default async function EmployeeLayout({
       title="Employee workspace"
       subtitle="Personal tracking"
       accent="Start your timer, review your stats, and send help requests."
-      footerNote="Your tracking data syncs every 30 seconds from the desktop tracker."
       navItems={dynamicNavItems}
       bellHref="/employee/requests"
       notificationScope={context.organization.id}
