@@ -94,10 +94,9 @@ export default async function EmployeeRequestsPage() {
             <CardHeader>
               <CardTitle>Inbox & Activity Updates</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 max-h-[450px] overflow-y-auto pr-2">
               {notifications
                 .filter((item: NotificationRecord) => item.kind === "ANNOUNCEMENT")
-                .slice(0, 8)
                 .map((item: NotificationRecord) => {
                   const isApproved = item.title.toLowerCase().includes("approved");
                   const isRejected = item.title.toLowerCase().includes("rejected");
@@ -106,7 +105,7 @@ export default async function EmployeeRequestsPage() {
                     <details
                       key={item.id}
                       className={cn(
-                        "group rounded-2xl border p-4 transition-all duration-300 shadow-sm",
+                        "group rounded-2xl border p-4 transition-all duration-300 shadow-sm shrink-0",
                         isApproved
                           ? "border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 text-emerald-950 dark:text-emerald-50"
                           : isRejected
