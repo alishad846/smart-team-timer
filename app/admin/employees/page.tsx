@@ -120,6 +120,17 @@ export default async function AdminEmployeesPage() {
                       return now >= start && now <= end;
                     });
 
+                    const totalLeaveDays = userLeaves.reduce((total: number, leave: Notification) => {
+                      if (!leave.requestStartAt || !leave.requestEndAt) return total;
+                      const start = new Date(leave.requestStartAt);
+                      const end = new Date(leave.requestEndAt);
+                      const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+                      const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+                      const diffTime = endDay.getTime() - startDay.getTime();
+                      const diffDays = Math.max(0, Math.round(diffTime / (1000 * 60 * 60 * 24))) + 1;
+                      return total + diffDays;
+                    }, 0);
+
                     return (
                       <TableRow key={member.id}>
                         <TableCell className="font-medium">{member.user.fullName}</TableCell>
@@ -133,7 +144,7 @@ export default async function AdminEmployeesPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold">{userLeaves.length} leave{userLeaves.length === 1 ? "" : "s"}</span>
+                            <span className="text-sm font-semibold">{totalLeaveDays} day{totalLeaveDays === 1 ? "" : "s"} leave</span>
                             {isOnLeaveNow ? (
                               <Badge variant="outline" className="bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/20">
                                 On Leave
