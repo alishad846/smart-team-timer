@@ -10,7 +10,7 @@ const normalizedEmail = z.preprocess(
 
 const normalizedRole = z.preprocess(
   (value) => (typeof value === "string" ? value.trim().toUpperCase() : value),
-  z.enum(["OWNER", "MANAGER", "EMPLOYEE", "INTERN"])
+  z.enum(["OWNER", "MANAGER", "EMPLOYEE", "INTERN", "TESTER"])
 );
 
 const optionalTrimmedString = z.preprocess(
@@ -120,7 +120,7 @@ export const teamMemberSchema = z.object({
   organizationId: z.string().min(1),
   userId: z.string().min(1),
   teamId: z.string().optional(),
-  role: z.enum(["OWNER", "MANAGER", "EMPLOYEE", "INTERN"]).default("EMPLOYEE"),
+  role: z.enum(["OWNER", "MANAGER", "EMPLOYEE", "INTERN", "TESTER"]).default("EMPLOYEE"),
   status: z.enum(["INVITED", "ACTIVE", "PAUSED", "REMOVED"]).default("INVITED"),
   consentStatus: z.enum(["PENDING", "ACCEPTED", "REVOKED"]).default("PENDING"),
   title: z.string().optional().default("")
@@ -129,7 +129,7 @@ export const teamMemberSchema = z.object({
 export const teamMemberUpdateSchema = z.object({
   memberId: z.string().min(1),
   teamId: z.string().optional().nullable(),
-  role: z.enum(["OWNER", "MANAGER", "EMPLOYEE", "INTERN"]).optional(),
+  role: z.enum(["OWNER", "MANAGER", "EMPLOYEE", "INTERN", "TESTER"]).optional(),
   status: z.enum(["INVITED", "ACTIVE", "PAUSED", "REMOVED"]).optional(),
   consentStatus: z.enum(["PENDING", "ACCEPTED", "REVOKED"]).optional(),
   title: z.string().optional()

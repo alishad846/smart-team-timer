@@ -13,6 +13,7 @@ enum Role {
   MANAGER
   EMPLOYEE
   INTERN
+  TESTER
 }
 
 enum MemberStatus {

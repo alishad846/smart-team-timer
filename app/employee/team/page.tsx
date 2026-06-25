@@ -229,7 +229,7 @@ export default async function TeamLeadPage() {
                       <TableRow>
                         <TableHead>Member</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Current Task</TableHead>
+                        <TableHead>Task Status</TableHead>
                         <TableHead>Today's Time</TableHead>
                         <TableHead>Action</TableHead>
                       </TableRow>
@@ -274,18 +274,23 @@ export default async function TeamLeadPage() {
                                   </Badge>
                                 )}
                               </TableCell>
-                              <TableCell className="max-w-[200px] truncate">
-                                {isWorking && currentEntry ? (
-                                  <div>
-                                    <span className="font-medium text-sm block truncate">
-                                      {currentEntry.task?.title ?? "Tracking Project"}
-                                    </span>
-                                    <span className="text-xs text-muted-foreground block truncate">
-                                      {currentEntry.project?.name ?? "No Project"}
-                                    </span>
+                              <TableCell className="max-w-[200px] align-top py-4">
+                                {memberTasks.filter(t => t.status !== "DONE").length > 0 ? (
+                                  <div className="flex flex-col gap-3">
+                                    {memberTasks.filter(t => t.status !== "DONE").slice(0, 3).map(t => (
+                                      <div key={t.id} className="flex flex-col gap-1">
+                                        <Badge variant="outline" className={`w-fit font-medium text-[10px] h-4 px-1.5 py-0 ${t.status === "REVIEW" ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : ""}`}>
+                                          {t.status === "REVIEW" ? "TESTING" : (t.status === "TODO" ? "TO-DO" : t.status.replace("_", " "))}
+                                        </Badge>
+                                        <span className="text-xs text-muted-foreground break-words leading-relaxed">{t.title}</span>
+                                      </div>
+                                    ))}
+                                    {memberTasks.filter(t => t.status !== "DONE").length > 3 && (
+                                      <span className="text-[10px] text-muted-foreground ml-1">+{memberTasks.filter(t => t.status !== "DONE").length - 3} more</span>
+                                    )}
                                   </div>
                                 ) : (
-                                  <span className="text-sm text-muted-foreground">—</span>
+                                  <span className="text-muted-foreground text-sm">-</span>
                                 )}
                               </TableCell>
                               <TableCell>

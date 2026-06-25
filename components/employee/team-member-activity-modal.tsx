@@ -85,41 +85,72 @@ export function TeamMemberActivityModal({ latestLog, tasks: initialTasks = [] }:
               </div>
 
               {/* Tasks Section */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold border-t border-border pt-4">Assigned Tasks</h4>
-                {tasks.length > 0 ? (
-                  <div className="space-y-3 max-h-[30vh] overflow-y-auto pr-2">
-                    {tasks.map(task => (
-                      <div key={task.id} className="rounded-md bg-card border border-border p-3 text-sm">
-                        <div className="flex justify-between items-start mb-1">
-                          <div className="flex flex-col gap-1 pr-2">
-                            <p className="font-medium pr-2">{task.title}</p>
-                            <span className="text-[10px] bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded uppercase tracking-wider w-fit">{task.status}</span>
+              <div className="border-t border-border pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  {/* In Progress Column */}
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold text-muted-foreground">In Progress</h4>
+                    {tasks.filter(t => t.status !== "DONE").length > 0 ? (
+                      <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2">
+                        {tasks.filter(t => t.status !== "DONE").map(task => (
+                          <div key={task.id} className="rounded-md bg-card border border-border p-3 text-sm">
+                            <div className="flex justify-between items-start mb-1">
+                              <div className="flex flex-col gap-1 pr-2">
+                                <p className="font-medium pr-2">{task.title}</p>
+                                <span className="text-[10px] bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded uppercase tracking-wider w-fit">{task.status === "REVIEW" ? "TESTING" : task.status.replace("_", " ")}</span>
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive flex-shrink-0"
+                                onClick={() => handleDeleteTask(task.id)}
+                                disabled={deletingId === task.id}
+                              >
+                                {deletingId === task.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                              </Button>
+                            </div>
+                            {task.description && (
+                              <p className="text-muted-foreground text-xs mt-1.5 line-clamp-3">{task.description}</p>
+                            )}
+                            {task.project && (
+                              <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
+                                Project: <span className="font-medium">{task.project.name}</span>
+                              </p>
+                            )}
                           </div>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive flex-shrink-0"
-                            onClick={() => handleDeleteTask(task.id)}
-                            disabled={deletingId === task.id}
-                          >
-                            {deletingId === task.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-                          </Button>
-                        </div>
-                        {task.description && (
-                          <p className="text-muted-foreground text-xs mt-1.5 line-clamp-3">{task.description}</p>
-                        )}
-                        {task.project && (
-                          <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
-                            Project: <span className="font-medium">{task.project.name}</span>
-                          </p>
-                        )}
+                        ))}
                       </div>
-                    ))}
+                    ) : (
+                      <p className="text-muted-foreground text-xs">No active tasks.</p>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-muted-foreground text-sm">No active tasks assigned.</p>
-                )}
+
+                  {/* Completed Column */}
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold text-muted-foreground">Completed</h4>
+                    {tasks.filter(t => t.status === "DONE").length > 0 ? (
+                      <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2">
+                        {tasks.filter(t => t.status === "DONE").map(task => (
+                          <div key={task.id} className="rounded-md bg-emerald-500/5 border border-emerald-500/20 p-3 text-sm opacity-80">
+                            <div className="flex justify-between items-start mb-1">
+                              <div className="flex flex-col gap-1 pr-2">
+                                <p className="font-medium pr-2 line-through text-muted-foreground">{task.title}</p>
+                                <span className="text-[10px] bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded uppercase tracking-wider w-fit">COMPLETED</span>
+                              </div>
+                            </div>
+                            {task.project && (
+                              <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
+                                Project: <span className="font-medium">{task.project.name}</span>
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground text-xs">No completed tasks.</p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
             

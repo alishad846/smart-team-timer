@@ -166,6 +166,7 @@ export function InviteEmployeeForm({ teams }: { teams: TeamOption[] }) {
             >
               <option value="EMPLOYEE">Employee</option>
               <option value="INTERN">Intern</option>
+              <option value="TESTER">Tester</option>
               <option value="MANAGER">Manager</option>
             </Select>
           </div>

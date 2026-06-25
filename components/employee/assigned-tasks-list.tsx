@@ -36,6 +36,18 @@ export function AssignedTasksList({ tasks }: { tasks: AssignedTask[] }) {
     }
   }
 
+  async function handleStatusChange(taskId: string, newStatus: string) {
+    if (newStatus === "REVIEW") {
+      const w1 = window.confirm("Warning 1: Are you sure your task is fully completed and ready for testing?");
+      if (!w1) return;
+      const w2 = window.confirm("Warning 2: Have you double-checked all requirements? Once submitted, you cannot edit the status!");
+      if (!w2) return;
+      const w3 = window.confirm("Warning 3: Final confirmation! Submitting this to the Tester will lock the task. Proceed?");
+      if (!w3) return;
+    }
+    await updateTaskStatus(taskId, newStatus);
+  }
+
   return (
     <Card className="border-border/70">
       <CardHeader>
@@ -55,10 +67,10 @@ export function AssignedTasksList({ tasks }: { tasks: AssignedTask[] }) {
                 <p className="mt-1 text-sm text-muted-foreground">{task.projectName}</p>
               </div>
               <div className="flex items-center gap-3">
-                {task.status !== "DONE" ? (
+                {task.status !== "DONE" && task.status !== "REVIEW" ? (
                   <Select
                     value={task.status}
-                    onChange={(e) => updateTaskStatus(task.id, e.target.value)}
+                    onChange={(e) => handleStatusChange(task.id, e.target.value)}
                     disabled={loadingId === task.id}
                     className="w-[140px] h-9"
                   >
@@ -68,8 +80,11 @@ export function AssignedTasksList({ tasks }: { tasks: AssignedTask[] }) {
                   </Select>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <Badge variant="default">{task.status}</Badge>
-                    <span className="text-xs text-emerald-600 font-medium">✓ Completed</span>
+                    <Badge variant="default" className={task.status === "REVIEW" ? "bg-amber-500 hover:bg-amber-600" : ""}>
+                      {task.status === "REVIEW" ? "In Testing" : task.status}
+                    </Badge>
+                    {task.status === "DONE" && <span className="text-xs text-emerald-600 font-medium">✓ Completed</span>}
+                    {task.status === "REVIEW" && <span className="text-xs text-amber-600 font-medium">Pending Tester Approval</span>}
                   </div>
                 )}
               </div>

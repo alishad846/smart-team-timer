@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { ChevronDown } from "lucide-react";
 import { SupportRequestCard } from "@/components/employee/support-request-card";
 import RequestFormSwitcher from "@/components/employee/request-form-switcher";
 import { TrackingConsentCard } from "@/components/employee/tracking-consent-card";
@@ -80,8 +81,8 @@ export default async function EmployeeRequestsPage() {
 
       <TrackingConsentCard consentStatus={context.membership.consentStatus} />
 
-      <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <div className="space-y-6">
+      <div className="space-y-6">
+        <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
           <RequestFormSwitcher
             projects={projects}
             teamLeads={teamLeads}
@@ -91,18 +92,73 @@ export default async function EmployeeRequestsPage() {
 
           <Card className="border-border/70">
             <CardHeader>
-              <CardTitle>Your recent requests</CardTitle>
+              <CardTitle>Inbox & Activity Updates</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {notifications.filter((item: NotificationRecord) => item.kind === "REQUEST" && item.createdById === context.profile.id).length ===
+              {notifications
+                .filter((item: NotificationRecord) => item.kind === "ANNOUNCEMENT")
+                .slice(0, 8)
+                .map((item: NotificationRecord) => {
+                  const isApproved = item.title.toLowerCase().includes("approved");
+                  const isRejected = item.title.toLowerCase().includes("rejected");
+
+                  return (
+                    <details
+                      key={item.id}
+                      className={cn(
+                        "group rounded-2xl border p-4 transition-all duration-300 shadow-sm",
+                        isApproved
+                          ? "border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 text-emerald-950 dark:text-emerald-50"
+                          : isRejected
+                            ? "border-rose-500/20 bg-rose-500/5 dark:bg-rose-500/10 text-rose-950 dark:text-rose-50"
+                            : "border-border bg-muted/30"
+                      )}
+                    >
+                      <summary className="flex cursor-pointer items-center justify-between gap-4 list-none [&::-webkit-details-marker]:hidden">
+                        <div>
+                          <p className="font-semibold text-sm leading-none tracking-tight">{item.title}</p>
+                          <p className="mt-1.5 text-xs text-muted-foreground">
+                            {item.createdByName ?? "Admin"} - {format(item.createdAt, "MMM d, h:mm a")}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isApproved ? (
+                            <Badge variant="success">Approved</Badge>
+                          ) : isRejected ? (
+                            <Badge variant="warning">Rejected</Badge>
+                          ) : (
+                            <>
+                              <Badge variant="secondary">{item.kind}</Badge>
+                              <Badge variant="outline">{item.audience}</Badge>
+                            </>
+                          )}
+                          <ChevronDown className="ml-1 h-4 w-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+                        </div>
+                      </summary>
+                      <div className="mt-3 pt-3 border-t border-border/50 text-sm text-muted-foreground animate-in slide-in-from-top-1 fade-in duration-200">
+                        {item.message}
+                      </div>
+                    </details>
+                  );
+                })}
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="grid gap-6 md:grid-cols-2">
+          <Card className="border-border/70">
+            <CardHeader>
+              <CardTitle>Your recent requests</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 max-h-[30rem] overflow-y-auto pr-2">
+              {notifications.filter((item: NotificationRecord) => item.kind === "REQUEST" && !item.title.toLowerCase().includes("leave") && item.createdById === context.profile.id).length ===
               0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
                   No correction requests submitted yet.
                 </div>
               ) : null}
               {notifications
-                .filter((item: NotificationRecord) => item.kind === "REQUEST" && item.createdById === context.profile.id)
-                .slice(0, 6)
+                .filter((item: NotificationRecord) => item.kind === "REQUEST" && !item.title.toLowerCase().includes("leave") && item.createdById === context.profile.id)
                 .map((item: NotificationRecord) => (
                   <div key={item.id} className="rounded-2xl border border-border bg-muted/30 p-4">
                     <div className="flex items-center justify-between gap-4">
@@ -133,7 +189,7 @@ export default async function EmployeeRequestsPage() {
             <CardHeader>
               <CardTitle>Approved Leaves & Reasons</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 max-h-[30rem] overflow-y-auto pr-2">
               {notifications.filter((item: NotificationRecord) => item.kind === "REQUEST" && item.title.toLowerCase().includes("leave") && item.requestStatus === "APPROVED" && item.createdById === context.profile.id).length ===
               0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
@@ -164,59 +220,8 @@ export default async function EmployeeRequestsPage() {
                 ))}
             </CardContent>
           </Card>
-        </div>
-
-        <Card className="border-border/70">
-          <CardHeader>
-            <CardTitle>Inbox & Activity Updates</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {notifications
-              .filter((item: NotificationRecord) => item.kind === "ANNOUNCEMENT")
-              .slice(0, 8)
-              .map((item: NotificationRecord) => {
-                const isApproved = item.title.toLowerCase().includes("approved");
-                const isRejected = item.title.toLowerCase().includes("rejected");
-
-                return (
-                  <div
-                    key={item.id}
-                    className={cn(
-                      "rounded-2xl border p-4 transition-all duration-300 shadow-sm",
-                      isApproved
-                        ? "border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 text-emerald-950 dark:text-emerald-50"
-                        : isRejected
-                          ? "border-rose-500/20 bg-rose-500/5 dark:bg-rose-500/10 text-rose-950 dark:text-rose-50"
-                          : "border-border bg-muted/30"
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="font-semibold text-sm leading-none tracking-tight">{item.title}</p>
-                        <p className="mt-1.5 text-xs text-muted-foreground">
-                          {item.createdByName ?? "Admin"} - {format(item.createdAt, "MMM d, h:mm a")}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {isApproved ? (
-                          <Badge variant="success">Approved</Badge>
-                        ) : isRejected ? (
-                          <Badge variant="warning">Rejected</Badge>
-                        ) : (
-                          <>
-                            <Badge variant="secondary">{item.kind}</Badge>
-                            <Badge variant="outline">{item.audience}</Badge>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <p className="mt-3 text-sm text-muted-foreground">{item.message}</p>
-                  </div>
-                );
-              })}
-          </CardContent>
-        </Card>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }
