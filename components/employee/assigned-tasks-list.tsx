@@ -16,7 +16,7 @@ type AssignedTask = {
   title: string;
   projectName: string;
   status: string;
-  description?: string;
+  description?: string | null;
   rejectionReason?: string | null;
 };
 
