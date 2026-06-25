@@ -46,9 +46,17 @@ export async function PATCH(
     status = "TODO";
   }
 
+  const updateData: any = { status };
+  
+  if (status === "REVIEW") {
+    if (body.workDetails !== undefined) updateData.workDetails = body.workDetails;
+    if (body.githubLink !== undefined) updateData.githubLink = body.githubLink;
+    updateData.rejectionReason = null; // Clear rejection reason when resubmitted
+  }
+
   const updatedTask = await prisma.task.update({
     where: { id: task.id },
-    data: { status }
+    data: updateData
   });
 
   if (status === "REVIEW" && task.status !== "REVIEW") {

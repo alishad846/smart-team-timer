@@ -93,29 +93,34 @@ export function TeamMemberActivityModal({ latestLog, tasks: initialTasks = [] }:
                     {tasks.filter(t => t.status !== "DONE").length > 0 ? (
                       <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2">
                         {tasks.filter(t => t.status !== "DONE").map(task => (
-                          <div key={task.id} className="rounded-md bg-card border border-border p-3 text-sm">
-                            <div className="flex justify-between items-start mb-1">
-                              <div className="flex flex-col gap-1 pr-2">
-                                <p className="font-medium pr-2">{task.title}</p>
-                                <span className="text-[10px] bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded uppercase tracking-wider w-fit">{task.status === "REVIEW" ? "TESTING" : task.status.replace("_", " ")}</span>
+                          <div key={task.id} className="group relative rounded-xl bg-gradient-to-br from-card to-muted/20 border border-border/60 p-4 text-sm shadow-sm transition-all duration-300 hover:shadow-md hover:border-border hover:-translate-y-0.5">
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex flex-col gap-1.5 pr-2">
+                                <p className="font-semibold text-foreground pr-2 group-hover:text-primary transition-colors">{task.title}</p>
+                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider w-fit ${task.status === "REVIEW" ? "bg-amber-500/10 text-amber-600 border border-amber-500/20" : "bg-primary/10 text-primary border border-primary/20"}`}>
+                                  {task.status === "REVIEW" ? "TESTING" : task.status.replace("_", " ")}
+                                </span>
                               </div>
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
-                                className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive flex-shrink-0"
+                                className="h-7 w-7 p-0 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors opacity-0 group-hover:opacity-100"
                                 onClick={() => handleDeleteTask(task.id)}
                                 disabled={deletingId === task.id}
                               >
-                                {deletingId === task.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                                {deletingId === task.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                               </Button>
                             </div>
                             {task.description && (
-                              <p className="text-muted-foreground text-xs mt-1.5 line-clamp-3">{task.description}</p>
+                              <p className="text-muted-foreground text-xs leading-relaxed mt-2.5 whitespace-pre-wrap">{task.description}</p>
                             )}
                             {task.project && (
-                              <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
-                                Project: <span className="font-medium">{task.project.name}</span>
-                              </p>
+                              <div className="mt-3 pt-3 border-t border-border/50 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary/50" />
+                                <p className="text-[10px] text-muted-foreground font-medium">
+                                  {task.project.name}
+                                </p>
+                              </div>
                             )}
                           </div>
                         ))}
@@ -131,17 +136,22 @@ export function TeamMemberActivityModal({ latestLog, tasks: initialTasks = [] }:
                     {tasks.filter(t => t.status === "DONE").length > 0 ? (
                       <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2">
                         {tasks.filter(t => t.status === "DONE").map(task => (
-                          <div key={task.id} className="rounded-md bg-emerald-500/5 border border-emerald-500/20 p-3 text-sm opacity-80">
+                          <div key={task.id} className="group rounded-xl bg-gradient-to-br from-emerald-500/[0.03] to-emerald-500/[0.01] border border-emerald-500/20 p-4 text-sm opacity-70 transition-all duration-300 hover:opacity-100 hover:shadow-sm hover:border-emerald-500/30">
                             <div className="flex justify-between items-start mb-1">
-                              <div className="flex flex-col gap-1 pr-2">
-                                <p className="font-medium pr-2 line-through text-muted-foreground">{task.title}</p>
-                                <span className="text-[10px] bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded uppercase tracking-wider w-fit">COMPLETED</span>
+                              <div className="flex flex-col gap-1.5 pr-2">
+                                <p className="font-medium pr-2 line-through text-muted-foreground group-hover:text-foreground transition-colors">{task.title}</p>
+                                <span className="text-[10px] font-medium bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider w-fit">
+                                  COMPLETED
+                                </span>
                               </div>
                             </div>
                             {task.project && (
-                              <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
-                                Project: <span className="font-medium">{task.project.name}</span>
-                              </p>
+                              <div className="mt-3 pt-3 border-t border-emerald-500/10 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/50" />
+                                <p className="text-[10px] text-muted-foreground font-medium">
+                                  {task.project.name}
+                                </p>
+                              </div>
                             )}
                           </div>
                         ))}

@@ -67,9 +67,14 @@ export async function POST(
 
     return jsonWithCookies(response, { task: updatedTask }, { status: 200 });
   } else if (action === "reject") {
+    const rejectionReason = body.rejectionReason || "No reason provided.";
+
     const updatedTask = await prisma.task.update({
       where: { id: task.id },
-      data: { status: "IN_PROGRESS" }
+      data: { 
+        status: "IN_PROGRESS",
+        rejectionReason: rejectionReason
+      }
     });
 
     // Notify the assignee
@@ -80,7 +85,7 @@ export async function POST(
           createdById: context.profile.id,
           recipientUserId: task.assigneeId,
           title: "Task Rejected in Testing",
-          message: `The task "${task.title}" was tested and rejected by ${context.profile.fullName || 'a tester'}. It has been moved back to In Progress.`,
+          message: `The task "${task.title}" was tested and rejected by ${context.profile.fullName || 'a tester'}. Reason: ${rejectionReason}`,
           kind: "ANNOUNCEMENT",
           audience: "EMPLOYEES"
         }

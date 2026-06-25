@@ -282,7 +282,7 @@ export default async function TeamLeadPage() {
                                         <Badge variant="outline" className={`w-fit font-medium text-[10px] h-4 px-1.5 py-0 ${t.status === "REVIEW" ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : ""}`}>
                                           {t.status === "REVIEW" ? "TESTING" : (t.status === "TODO" ? "TO-DO" : t.status.replace("_", " "))}
                                         </Badge>
-                                        <span className="text-xs text-muted-foreground break-words leading-relaxed">{t.title}</span>
+                                        <span className="text-xs text-muted-foreground break-words whitespace-normal leading-relaxed">{t.title}</span>
                                       </div>
                                     ))}
                                     {memberTasks.filter(t => t.status !== "DONE").length > 3 && (

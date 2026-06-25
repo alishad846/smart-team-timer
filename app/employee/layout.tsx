@@ -37,6 +37,9 @@ export default async function EmployeeLayout({
   if (ledTeamsCount > 0) {
     dynamicNavItems.push({ href: "/employee/team", label: "My Team", icon: "users" });
   }
+  if (context.profile.role === "TESTER") {
+    dynamicNavItems.push({ href: "/employee/testing", label: "Testing", icon: "shieldCheck" });
+  }
 
   return (
     <AppShell

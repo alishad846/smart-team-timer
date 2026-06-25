@@ -197,18 +197,21 @@ model Project {
 }
 
 model Task {
-  id          String       @id @default(cuid())
-  projectId   String       @map("project_id")
-  assigneeId  String?      @map("assignee_id")
-  title       String
-  description String?      @default("")
-  status      TaskStatus   @default(TODO)
-  priority    TaskPriority @default(MEDIUM)
-  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  assignee    User?        @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
-  timeEntries TimeEntry[]
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
+  id              String       @id @default(cuid())
+  projectId       String       @map("project_id")
+  assigneeId      String?      @map("assignee_id")
+  title           String
+  description     String?      @default("")
+  status          TaskStatus   @default(TODO)
+  priority        TaskPriority @default(MEDIUM)
+  workDetails     String?      @map("work_details")
+  githubLink      String?      @map("github_link")
+  rejectionReason String?      @map("rejection_reason")
+  project         Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee        User?        @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  timeEntries     TimeEntry[]
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
 
   @@index([projectId])
   @@map("tasks")

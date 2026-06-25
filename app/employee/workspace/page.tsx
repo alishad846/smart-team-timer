@@ -10,7 +10,6 @@ import { TrackingConsentCard } from "@/components/employee/tracking-consent-card
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AssignedTasksList } from "@/components/employee/assigned-tasks-list";
-import { TesterQueue, type TestableTask } from "@/components/employee/tester-queue";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { prisma } from "@/lib/prisma";
 import { loadEmployeeDashboardData } from "@/lib/employee-dashboard";
@@ -42,30 +41,6 @@ export default async function EmployeeWorkspacePage() {
   const assignedProjects = data.projects.filter((project: EmployeeProject) =>
     data.assignedTasks.some((task) => task.projectId === project.id)
   );
-
-  let testableTasks: TestableTask[] = [];
-  if (context.profile.role === "TESTER") {
-    const rawTasks = await prisma.task.findMany({
-      where: {
-        status: "REVIEW",
-        project: {
-          organizationId: context.organization.id
-        }
-      },
-      include: {
-        project: true,
-        assignee: true
-      },
-      orderBy: { updatedAt: "desc" }
-    });
-    testableTasks = rawTasks.map((t) => ({
-      id: t.id,
-      title: t.title,
-      projectName: t.project?.name ?? null,
-      assigneeName: t.assignee?.fullName ?? null
-    }));
-  }
-  
   return (
     <div className="space-y-8">
       <PageHeader
@@ -76,10 +51,6 @@ export default async function EmployeeWorkspacePage() {
 
       <TrackingConsentCard consentStatus={context.membership.consentStatus} />
       <IdleWarning enabled={context.membership.consentStatus === "ACCEPTED" && data.activeEntry?.status === "RUNNING"} />
-
-      {context.profile.role === "TESTER" && testableTasks.length > 0 && (
-        <TesterQueue tasks={testableTasks} />
-      )}
 
       <WorkspaceSummaryCards
         userId={context.profile.id}
@@ -144,7 +115,9 @@ export default async function EmployeeWorkspacePage() {
             id: task.id,
             title: task.title,
             projectName: task.projectName,
-            status: task.status
+            status: task.status,
+            description: task.description,
+            rejectionReason: (task as any).rejectionReason // Cast because it might not be in the type yet
           }))}
         />
 

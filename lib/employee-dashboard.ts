@@ -24,6 +24,9 @@ export type EmployeeTask = {
   projectName: string;
   assigneeId: string | null;
   assigneeName: string | null;
+  workDetails?: string | null;
+  githubLink?: string | null;
+  rejectionReason?: string | null;
 };
 
 export type EmployeeTimeEntry = {
@@ -205,7 +208,10 @@ export async function loadEmployeeDashboardData({ organizationId, userId }: Empl
     projectId: task.projectId,
     projectName: (task as any).project?.name ?? "No project",
     assigneeId: task.assigneeId,
-    assigneeName: task.assignee?.fullName ?? null
+    assigneeName: task.assignee?.fullName ?? null,
+    workDetails: task.workDetails,
+    githubLink: task.githubLink,
+    rejectionReason: task.rejectionReason
   }));
 
   const activeEntry =
