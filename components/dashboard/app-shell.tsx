@@ -38,7 +38,7 @@ type AppShellProps = {
   subtitle: string;
   accent: string;
   navItems: NavItem[];
-  footerNote: string;
+  footerNote?: string;
   bellHref?: string;
   notificationScope?: string;
   children: ReactNode;
