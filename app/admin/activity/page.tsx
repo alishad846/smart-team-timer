@@ -54,6 +54,7 @@ export default async function AdminActivityPage({ params, searchParams }: { para
       where: { organizationId: context.organization.id },
       select: { id: true, user: { select: { fullName: true } }, activeApp: true, activeWindow: true, capturedAt: true },
       orderBy: { capturedAt: "desc" },
+      distinct: ["userId"],
       take: 50,
     }),
   ]);
