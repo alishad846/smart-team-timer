@@ -3,6 +3,7 @@ import { CreateProjectForm, CreateTaskForm, AssignWorkForm, DeleteTaskButton } f
 import { ProjectsBoard } from "@/components/admin/projects-board";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceContext } from "@/lib/workspace";
@@ -14,7 +15,16 @@ type MemberWithRelations = TeamMember & { user: User; team: Team | null };
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminTasksPage() {
+export default async function AdminTasksPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; size?: string }>;
+}) {
+  const resolvedSearchParams = await searchParams;
+  const page = Number(resolvedSearchParams.page) || 1;
+  const size = Math.min(Number(resolvedSearchParams.size) || 20, 50);
+  const skip = (page - 1) * size;
+
   const context = await getWorkspaceContext();
 
   if (!context) {
@@ -25,7 +35,7 @@ export default async function AdminTasksPage() {
     redirect("/employee");
   }
 
-  const [teams, projects, tasks, members] = await Promise.all([
+  const [teams, projects, tasksResult, totalTasks, members] = await Promise.all([
     prisma.team.findMany({
       where: { organizationId: context.organization.id },
       orderBy: { createdAt: "asc" }
@@ -45,10 +55,19 @@ export default async function AdminTasksPage() {
         project: true,
         assignee: true
       },
-      orderBy: { updatedAt: "desc" }
+      orderBy: { updatedAt: "desc" },
+      skip,
+      take: size,
     }) as unknown as TaskWithRelations[],
+    prisma.task.count({
+      where: {
+        project: {
+          organizationId: context.organization.id
+        }
+      }
+    }),
     prisma.teamMember.findMany({
-      where: { organizationId: context.organization.id },
+      where: { organizationId: context.organization.id, status: { not: "REMOVED" } },
       include: { user: true, team: true },
       orderBy: { createdAt: "desc" }
     }) as unknown as MemberWithRelations[]
@@ -76,7 +95,7 @@ export default async function AdminTasksPage() {
             <CardTitle>Tasks</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-semibold">{tasks.length}</p>
+            <p className="text-3xl font-semibold">{tasksResult.length}</p>
           </CardContent>
         </Card>
         <Card className="border-border/70">
@@ -113,7 +132,7 @@ export default async function AdminTasksPage() {
           name: member.user.fullName,
           githubUsername: member.user.githubUsername
         }))}
-        tasks={tasks.filter((task) => !task.assigneeId).map((task) => ({
+        tasks={tasksResult.filter((task) => !task.assigneeId).map((task) => ({
           id: task.id,
           title: task.title,
           projectName: task.project?.name ?? "No project"
@@ -125,7 +144,7 @@ export default async function AdminTasksPage() {
           <CardTitle>Task board</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {tasks.map((task) => (
+          {tasksResult.map((task) => (
             <div key={task.id} className="rounded-2xl border border-border bg-muted/30 p-4">
               <div className="flex items-center justify-between gap-4">
                 <div>
@@ -144,6 +163,30 @@ export default async function AdminTasksPage() {
               </div>
             </div>
           ))}
+          {tasksResult.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">No tasks found</div>
+          )}
+          <div className="flex justify-center items-center gap-4 pt-4 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => window.location.search = `?page=${page - 1}&size=${size}`}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Page {page} of {Math.ceil(totalTasks / size) || 1}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= Math.ceil(totalTasks / size)}
+              onClick={() => window.location.search = `?page=${page + 1}&size=${size}`}
+            >
+              Next
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

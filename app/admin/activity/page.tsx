@@ -18,6 +18,10 @@ export const revalidate = 60; // ISR: cache for 60 seconds
 export default async function AdminActivityPage({ params, searchParams }: { params: Promise<Record<string, string | string[]>>; searchParams: Promise<{ page?: string; size?: string }> }) {
   // searchParams are directly destructured from the function arguments
   const resolvedSearchParams = await searchParams;
+  const page = Number(resolvedSearchParams.page) || 1;
+  const size = Math.min(Number(resolvedSearchParams.size) || 20, 50);
+  const skip = (page - 1) * size;
+
   const context = await getWorkspaceContext();
 
   if (!context) {
@@ -28,18 +32,22 @@ export default async function AdminActivityPage({ params, searchParams }: { para
     redirect("/employee");
   }
 
-  const [members, timeEntries, activityLogs, screenshots] = await Promise.all([
+  const [members, totalMembers, timeEntries, activityLogs, screenshots] = await Promise.all([
     prisma.teamMember.findMany({
       where: { organizationId: context.organization.id, status: { not: "REMOVED" } },
       include: { user: { select: { id: true, fullName: true, email: true, githubUsername: true } }, team: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
-      skip: ((Number(resolvedSearchParams.page) || 1) - 1) * (Number(resolvedSearchParams.size) || 10),
-      take: Number(resolvedSearchParams.size) || 10,
+      skip,
+      take: size,
+    }),
+    prisma.teamMember.count({
+      where: { organizationId: context.organization.id, status: { not: "REMOVED" } },
     }),
     prisma.timeEntry.findMany({
       where: { organizationId: context.organization.id },
       select: { userId: true, productiveSeconds: true, idleSeconds: true, totalSeconds: true, startedAt: true },
       orderBy: { startedAt: "desc" },
+      take: 500, // Limit to recent 500 entries
     }),
     prisma.activityLog.findMany({
       where: {
@@ -166,20 +174,27 @@ export default async function AdminActivityPage({ params, searchParams }: { para
                 ))}
                   {/* Pagination */}
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center">
-                      <div className="flex justify-center space-x-4">
-                        <Link
-                          href={`?page=${(Number(resolvedSearchParams.page) || 1) - 1}&size=${resolvedSearchParams.size || 10}`}
-                          className={`px-3 py-1 rounded ${ (Number(resolvedSearchParams.page) || 1) <= 1 ? "pointer-events-none opacity-50" : "bg-primary text-primary-foreground"}`}
+                    <TableCell colSpan={6} className="text-center py-4">
+                      <div className="flex justify-center items-center gap-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={page <= 1}
+                          onClick={() => window.location.search = `?page=${page - 1}&size=${size}`}
                         >
-                          Prev
-                        </Link>
-                        <Link
-                          href={`?page=${(Number(resolvedSearchParams.page) || 1) + 1}&size=${resolvedSearchParams.size || 10}`}
-                          className="px-3 py-1 rounded bg-primary text-primary-foreground"
+                          Previous
+                        </Button>
+                        <span className="text-sm text-muted-foreground">
+                          Page {page} of {Math.ceil(totalMembers / size) || 1}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={page >= Math.ceil(totalMembers / size)}
+                          onClick={() => window.location.search = `?page=${page + 1}&size=${size}`}
                         >
                           Next
-                        </Link>
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

@@ -19,7 +19,16 @@ import { getWorkspaceContext } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminEmployeesPage() {
+export default async function AdminEmployeesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; size?: string }>;
+}) {
+  const resolvedSearchParams = await searchParams;
+  const page = Number(resolvedSearchParams.page) || 1;
+  const size = Math.min(Number(resolvedSearchParams.size) || 20, 50);
+  const skip = (page - 1) * size;
+
   const context = await getWorkspaceContext();
 
   if (!context) {
@@ -30,28 +39,32 @@ export default async function AdminEmployeesPage() {
     redirect("/employee");
   }
 
-  const [teams, members, approvedLeaves] = await Promise.all([
+  const [teams, membersResult, approvedLeaves] = await Promise.all([
     prisma.team.findMany({
       where: { organizationId: context.organization.id },
       orderBy: { createdAt: "asc" }
     }),
     prisma.teamMember.findMany({
-      where: { organizationId: context.organization.id },
+      where: { organizationId: context.organization.id, status: { not: "REMOVED" } },
       include: { user: true, team: true },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: size,
     }) as unknown as MemberWithRelations[],
     prisma.notification.findMany({
       where: {
         organizationId: context.organization.id,
         kind: "REQUEST",
-        title: {
-          contains: "Leave",
-          mode: "insensitive"
-        },
-        requestStatus: "APPROVED"
-      }
+        title: { contains: "Leave", mode: "insensitive" },
+        requestStatus: "APPROVED",
+      },
+      select: { id: true, createdById: true, requestStartAt: true, requestEndAt: true },
     })
   ]);
+
+  const totalMembers = await prisma.teamMember.count({
+    where: { organizationId: context.organization.id, status: { not: "REMOVED" } },
+  });
 
   return (
     <div className="space-y-8">
@@ -67,7 +80,7 @@ export default async function AdminEmployeesPage() {
             <CardTitle>Active members</CardTitle>
           </CardHeader>
           <CardContent>
-             <p className="text-3xl font-semibold">{members.filter((member: MemberWithRelations) => member.status === "ACTIVE").length}</p>
+             <p className="text-3xl font-semibold">{totalMembers}</p>
           </CardContent>
         </Card>
         <Card className="border-border/70">
@@ -75,7 +88,7 @@ export default async function AdminEmployeesPage() {
             <CardTitle>GitHub profiles</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-semibold">{members.filter((member: MemberWithRelations) => Boolean(member.user.githubUsername)).length}</p>
+            <p className="text-3xl font-semibold">{membersResult.filter((member: MemberWithRelations) => Boolean(member.user.githubUsername)).length}</p>
           </CardContent>
         </Card>
         <Card className="border-border/70">
@@ -110,17 +123,17 @@ export default async function AdminEmployeesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                   {members.filter((m: MemberWithRelations) => m.status !== "REMOVED").map((member: MemberWithRelations) => {
-                    const userLeaves = approvedLeaves.filter((leave: Notification) => leave.createdById === member.userId);
+                   {membersResult.map((member: MemberWithRelations) => {
+                    const userLeaves = approvedLeaves.filter((leave: any) => leave.createdById === member.userId);
                     const now = new Date();
-                    const isOnLeaveNow = userLeaves.some((leave: Notification) => {
+                    const isOnLeaveNow = userLeaves.some((leave: any) => {
                       if (!leave.requestStartAt || !leave.requestEndAt) return false;
                       const start = new Date(leave.requestStartAt);
                       const end = new Date(leave.requestEndAt);
                       return now >= start && now <= end;
                     });
 
-                    const totalLeaveDays = userLeaves.reduce((total: number, leave: Notification) => {
+                    const totalLeaveDays = userLeaves.reduce((total: number, leave: any) => {
                       if (!leave.requestStartAt || !leave.requestEndAt) return total;
                       const start = new Date(leave.requestStartAt);
                       const end = new Date(leave.requestEndAt);
@@ -165,6 +178,32 @@ export default async function AdminEmployeesPage() {
                       </TableRow>
                     );
                   })}
+                  {/* Pagination */}
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-4">
+                      <div className="flex justify-center items-center gap-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={page <= 1}
+                          onClick={() => window.location.search = `?page=${page - 1}&size=${size}`}
+                        >
+                          Previous
+                        </Button>
+                        <span className="text-sm text-muted-foreground">
+                          Page {page} of {Math.ceil(totalMembers / size) || 1}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={page >= Math.ceil(totalMembers / size)}
+                          onClick={() => window.location.search = `?page=${page + 1}&size=${size}`}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </div>

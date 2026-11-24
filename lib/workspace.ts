@@ -135,28 +135,48 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(): P
     return null;
   }
 
-  // Find or create the user profile in the database. This mirrors the logic in getCurrentUser without invoking the circular call.
-  const profile = await prisma.user.upsert({
+  // Find or create the user profile in the database.
+  const profile = await prisma.user.findUnique({
     where: { authUserId: user.id },
-    update: {
-      email: user.email ?? `${user.id}@local.invalid`,
-      fullName: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email ?? "Team Member"
-    },
-    create: {
-      authUserId: user.id,
-      email: user.email ?? `${user.id}@local.invalid`,
-      fullName: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email ?? "Team Member",
-      // Create a default organization for the user to satisfy the required relation
-      organization: {
-        create: {
-          name: `${user.email ?? "User"}'s Workspace`,
-          slug: buildSlug(user.email ?? `${user.id}@local.invalid`, user.id.slice(0, 6)),
-          description: "Default SmartTeamTimer workspace"
-        }
-      }
-    }
   });
 
+  if (!profile) {
+    // Only create if doesn't exist - avoids upsert on every request
+    const newProfile = await prisma.user.create({
+      data: {
+        authUserId: user.id,
+        email: user.email ?? `${user.id}@local.invalid`,
+        fullName: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email ?? "Team Member",
+        organization: {
+          create: {
+            name: `${user.email ?? "User"}'s Workspace`,
+            slug: buildSlug(user.email ?? `${user.id}@local.invalid`, user.id.slice(0, 6)),
+            description: "Default SmartTeamTimer workspace"
+          }
+        }
+      }
+    });
+
+    const { organization, membership, profile: ensuredProfile } = await ensureWorkspace(newProfile);
+    return {
+      user: { id: user.id, email: user.email ?? newProfile.email },
+      profile: ensuredProfile,
+      organization,
+      membership,
+      workspaceRole: membership.role === Role.OWNER || membership.role === Role.MANAGER ? "admin" : "employee"
+    };
+  }
+
+  // Profile exists - only update email/name if changed (rare)
+  if (profile.email !== user.email || profile.fullName !== (user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email ?? "Team Member")) {
+    await prisma.user.update({
+      where: { id: profile.id },
+      data: {
+        email: user.email ?? profile.email,
+        fullName: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email ?? profile.fullName
+      }
+    });
+  }
 
   const { organization, membership, profile: ensuredProfile } = await ensureWorkspace(profile);
 

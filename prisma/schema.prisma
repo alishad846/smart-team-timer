@@ -373,5 +373,6 @@ model Notification {
   reviewedBy     User?                @relation("NotificationReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
 
   @@index([organizationId, createdAt])
+  @@index([organizationId, kind, requestStatus])
   @@map("notifications")
 }
