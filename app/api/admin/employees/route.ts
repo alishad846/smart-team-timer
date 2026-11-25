@@ -6,6 +6,59 @@ import { employeeInviteSchema } from "@/lib/validators";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 
+export async function GET(request: NextRequest) {
+  const context = await getWorkspaceContext();
+
+  if (!context) {
+    return jsonWithCookies(new NextResponse(), { error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (context.workspaceRole !== "admin") {
+    return jsonWithCookies(new NextResponse(), { error: "Forbidden" }, { status: 403 });
+  }
+
+  const searchParams = request.nextUrl.searchParams;
+  const page = Number(searchParams.get("page")) || 1;
+  const size = Math.min(Number(searchParams.get("size")) || 20, 50);
+  const skip = (page - 1) * size;
+
+  const [teams, members, totalMembers, approvedLeaves] = await Promise.all([
+    prisma.team.findMany({
+      where: { organizationId: context.organization.id },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.teamMember.findMany({
+      where: { organizationId: context.organization.id, status: { not: "REMOVED" } },
+      include: { user: true, team: true },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: size,
+    }),
+    prisma.teamMember.count({
+      where: { organizationId: context.organization.id, status: { not: "REMOVED" } },
+    }),
+    prisma.notification.findMany({
+      where: {
+        organizationId: context.organization.id,
+        kind: "REQUEST",
+        title: { contains: "Leave", mode: "insensitive" },
+        requestStatus: "APPROVED",
+      },
+      select: { id: true, createdById: true, requestStartAt: true, requestEndAt: true },
+    }),
+  ]);
+
+  return jsonWithCookies(new NextResponse(), {
+    teams,
+    members,
+    totalMembers,
+    approvedLeaves,
+    page,
+    size,
+    totalPages: Math.ceil(totalMembers / size),
+  });
+}
+
 export async function POST(request: NextRequest) {
   const response = NextResponse.next();
   const context = await getWorkspaceContext();

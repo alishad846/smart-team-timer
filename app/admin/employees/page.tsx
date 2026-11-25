@@ -1,12 +1,8 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import type { Team, TeamMember, Notification, User } from "@prisma/client";
+"use client";
 
-// Type that includes related user and team objects returned by Prisma
-type MemberWithRelations = TeamMember & {
-  user: User;
-  team: Team | null;
-};
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { InviteEmployeeForm } from "@/components/admin/admin-forms";
 import { RemoveEmployeeButton } from "@/components/admin/remove-employee-button";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -14,57 +10,126 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { prisma } from "@/lib/prisma";
-import { getWorkspaceContext } from "@/lib/workspace";
+import { usePaginatedData } from "@/lib/data-fetch";
 
-export const dynamic = "force-dynamic";
+interface Team {
+  id: string;
+  name: string;
+}
 
-export default async function AdminEmployeesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ page?: string; size?: string }>;
-}) {
-  const resolvedSearchParams = await searchParams;
-  const page = Number(resolvedSearchParams.page) || 1;
-  const size = Math.min(Number(resolvedSearchParams.size) || 20, 50);
-  const skip = (page - 1) * size;
+interface User {
+  id: string;
+  fullName: string;
+  email: string;
+  githubUsername: string | null;
+}
 
-  const context = await getWorkspaceContext();
+interface TeamMemberWithRelations {
+  id: string;
+  userId: string;
+  teamId: string | null;
+  role: string;
+  status: string;
+  consentStatus: string;
+  user: User;
+  team: Team | null;
+}
 
-  if (!context) {
-    redirect("/auth/login");
+interface Leave {
+  id: string;
+  createdById: string;
+  requestStartAt: string | null;
+  requestEndAt: string | null;
+}
+
+interface AdminEmployeesResponse {
+  teams: Team[];
+  members: TeamMemberWithRelations[];
+  totalMembers: number;
+  approvedLeaves: Leave[];
+  page: number;
+  size: number;
+  totalPages: number;
+}
+
+export default function AdminEmployeesPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const page = Number(searchParams.get("page")) || 1;
+  const size = Math.min(Number(searchParams.get("size")) || 20, 50);
+
+  const { data, loading, error, refetch } = usePaginatedData<TeamMemberWithRelations>(
+    "/api/admin/employees",
+    page,
+    size,
+    { ttl: 5 * 60 * 1000 }
+  );
+
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [totalMembers, setTotalMembers] = useState(0);
+  const [approvedLeaves, setApprovedLeaves] = useState<Leave[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Fetch teams and leaves separately (they don't change often)
+  const fetchStaticData = async () => {
+    try {
+      const response = await fetch("/api/admin/employees");
+      if (response.ok) {
+        const result: AdminEmployeesResponse = await response.json();
+        setTeams(result.teams);
+        setTotalMembers(result.totalMembers);
+        setApprovedLeaves(result.approvedLeaves);
+        setTotalPages(result.totalPages);
+      }
+    } catch (err) {
+      console.error("Failed to fetch static data:", err);
+    }
+  };
+
+  // We need to fetch static data on mount and when page changes
+  // But we use the cached data for the main table
+
+  const handlePageChange = (newPage: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", newPage.toString());
+    router.push(`/admin/employees?${params.toString()}`);
+  };
+
+  if (loading && !data) {
+    return (
+      <div className="space-y-8">
+        <PageHeader
+          badge="Employee management"
+          title="Add people and review access"
+          description="Create employee logins, store their GitHub profile, and open their individual activity page."
+        />
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
   }
 
-  if (context.workspaceRole !== "admin") {
-    redirect("/employee");
+  if (error) {
+    return (
+      <div className="space-y-8">
+        <PageHeader
+          badge="Employee management"
+          title="Add people and review access"
+          description="Create employee logins, store their GitHub profile, and open their individual activity page."
+        />
+        <Card className="border-border/70">
+          <CardContent className="py-8 text-center text-destructive">
+            Failed to load employees. <Button variant="outline" size="sm" onClick={refetch}>Retry</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
-  const [teams, membersResult, approvedLeaves] = await Promise.all([
-    prisma.team.findMany({
-      where: { organizationId: context.organization.id },
-      orderBy: { createdAt: "asc" }
-    }),
-    prisma.teamMember.findMany({
-      where: { organizationId: context.organization.id, status: { not: "REMOVED" } },
-      include: { user: true, team: true },
-      orderBy: { createdAt: "desc" },
-      skip,
-      take: size,
-    }) as unknown as MemberWithRelations[],
-    prisma.notification.findMany({
-      where: {
-        organizationId: context.organization.id,
-        kind: "REQUEST",
-        title: { contains: "Leave", mode: "insensitive" },
-        requestStatus: "APPROVED",
-      },
-      select: { id: true, createdById: true, requestStartAt: true, requestEndAt: true },
-    })
-  ]);
-
-  const totalMembers = await prisma.teamMember.count({
-    where: { organizationId: context.organization.id, status: { not: "REMOVED" } },
-  });
+  // Calculate stats from data
+  const membersResult = data || [];
+  const githubProfilesCount = membersResult.filter((m) => m.user.githubUsername).length;
 
   return (
     <div className="space-y-8">
@@ -88,7 +153,7 @@ export default async function AdminEmployeesPage({
             <CardTitle>GitHub profiles</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-semibold">{membersResult.filter((member: MemberWithRelations) => Boolean(member.user.githubUsername)).length}</p>
+            <p className="text-3xl font-semibold">{githubProfilesCount}</p>
           </CardContent>
         </Card>
         <Card className="border-border/70">
@@ -123,17 +188,17 @@ export default async function AdminEmployeesPage({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                   {membersResult.map((member: MemberWithRelations) => {
-                    const userLeaves = approvedLeaves.filter((leave: any) => leave.createdById === member.userId);
+                   {membersResult.map((member: TeamMemberWithRelations) => {
+                    const userLeaves = approvedLeaves.filter((leave: Leave) => leave.createdById === member.userId);
                     const now = new Date();
-                    const isOnLeaveNow = userLeaves.some((leave: any) => {
+                    const isOnLeaveNow = userLeaves.some((leave: Leave) => {
                       if (!leave.requestStartAt || !leave.requestEndAt) return false;
                       const start = new Date(leave.requestStartAt);
                       const end = new Date(leave.requestEndAt);
                       return now >= start && now <= end;
                     });
 
-                    const totalLeaveDays = userLeaves.reduce((total: number, leave: any) => {
+                    const totalLeaveDays = userLeaves.reduce((total: number, leave: Leave) => {
                       if (!leave.requestStartAt || !leave.requestEndAt) return total;
                       const start = new Date(leave.requestStartAt);
                       const end = new Date(leave.requestEndAt);
@@ -186,18 +251,18 @@ export default async function AdminEmployeesPage({
                           variant="outline"
                           size="sm"
                           disabled={page <= 1}
-                          onClick={() => window.location.search = `?page=${page - 1}&size=${size}`}
+                          onClick={() => handlePageChange(page - 1)}
                         >
                           Previous
                         </Button>
                         <span className="text-sm text-muted-foreground">
-                          Page {page} of {Math.ceil(totalMembers / size) || 1}
+                          Page {page} of {totalPages || 1}
                         </span>
                         <Button
                           variant="outline"
                           size="sm"
-                          disabled={page >= Math.ceil(totalMembers / size)}
-                          onClick={() => window.location.search = `?page=${page + 1}&size=${size}`}
+                          disabled={page >= totalPages}
+                          onClick={() => handlePageChange(page + 1)}
                         >
                           Next
                         </Button>

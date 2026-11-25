@@ -243,6 +243,8 @@ model TimeEntry {
   @@index([organizationId, userId])
   @@index([organizationId, startedAt])
   @@index([userId, organizationId, startedAt])
+  @@index([organizationId, userId, startedAt])
+  @@index([organizationId, projectId, startedAt])
   @@map("time_entries")
 }
 
@@ -266,6 +268,7 @@ model ActivityLog {
 
   @@index([organizationId, userId])
   @@index([organizationId, capturedAt])
+  @@index([organizationId, userId, capturedAt])
   @@map("activity_logs")
 }
 
@@ -374,5 +377,6 @@ model Notification {
 
   @@index([organizationId, createdAt])
   @@index([organizationId, kind, requestStatus])
+  @@index([organizationId, recipientUserId, createdAt])
   @@map("notifications")
 }

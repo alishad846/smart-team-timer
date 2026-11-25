@@ -1,91 +1,130 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import type { ActivityLog, TeamMember, TimeEntry, Screenshot } from "@prisma/client";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { redirect } from "next/navigation";
-import { subHours } from "date-fns";
-import { prisma } from "@/lib/prisma";
-import { summarizeTimeEntries } from "@/lib/time-metrics";
-import { getWorkspaceContext } from "@/lib/workspace";
+import { usePaginatedData } from "@/lib/data-fetch";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 60; // ISR: cache for 60 seconds
+interface Member {
+  id: string;
+  name: string;
+  team: string;
+  githubUsername: string;
+  score: number;
+  consentStatus: string;
+}
 
-// @ts-ignore
-export default async function AdminActivityPage({ params, searchParams }: { params: Promise<Record<string, string | string[]>>; searchParams: Promise<{ page?: string; size?: string }> }) {
-  // searchParams are directly destructured from the function arguments
-  const resolvedSearchParams = await searchParams;
-  const page = Number(resolvedSearchParams.page) || 1;
-  const size = Math.min(Number(resolvedSearchParams.size) || 20, 50);
-  const skip = (page - 1) * size;
+interface Screenshot {
+  id: string;
+  user: { fullName: string };
+  activeApp: string | null;
+  activeWindow: string | null;
+  capturedAt: string;
+}
 
-  const context = await getWorkspaceContext();
+interface AdminActivityResponse {
+  members: Member[];
+  totalMembers: number;
+  page: number;
+  size: number;
+  totalPages: number;
+  totalTrackedHours: number;
+  productiveMinutes: number;
+  idleMinutes: number;
+  productivityScore: number;
+  lowActivityCount: number;
+  screenshots: Screenshot[];
+}
 
-  if (!context) {
-    redirect("/auth/login");
+export default function AdminActivityPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const page = Number(searchParams.get("page")) || 1;
+  const size = Math.min(Number(searchParams.get("size")) || 20, 50);
+
+  const { data: members, loading: membersLoading, error: membersError, refetch: refetchMembers } = usePaginatedData<Member>(
+    "/api/admin/activity",
+    page,
+    size,
+    { ttl: 5 * 60 * 1000 }
+  );
+
+  const [stats, setStats] = useState<AdminActivityResponse | null>(null);
+  const [staticLoading, setStaticLoading] = useState(true);
+  const [staticError, setStaticError] = useState<Error | null>(null);
+
+  // Fetch static data (stats, screenshots) once
+  useEffect(() => {
+    const fetchStaticData = async () => {
+      try {
+        setStaticLoading(true);
+        const response = await fetch("/api/admin/activity");
+        if (response.ok) {
+          const result: AdminActivityResponse = await response.json();
+          setStats(result);
+        }
+      } catch (err) {
+        setStaticError(err instanceof Error ? err : new Error("Failed to load data"));
+      } finally {
+        setStaticLoading(false);
+      }
+    };
+
+    fetchStaticData();
+  }, []);
+
+  const handlePageChange = (newPage: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", newPage.toString());
+    router.push(`/admin/activity?${params.toString()}`);
+  };
+
+  if (staticLoading && !stats) {
+    return (
+      <>
+        <PageHeader
+          badge="Activity monitoring"
+          title="Admin Activity Dashboard"
+          description="Open a person's detail page to review their time entries, screenshots, and app usage."
+        />
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </>
+    );
   }
 
-  if (context.workspaceRole !== "admin") {
-    redirect("/employee");
+  if (staticError) {
+    return (
+      <>
+        <PageHeader
+          badge="Activity monitoring"
+          title="Admin Activity Dashboard"
+          description="Open a person's detail page to review their time entries, screenshots, and app usage."
+        />
+        <Card className="border-border/70">
+          <CardContent className="py-8 text-center text-destructive">
+            Failed to load data. <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Retry</Button>
+          </CardContent>
+        </Card>
+      </>
+    );
   }
 
-  const [members, totalMembers, timeEntries, activityLogs, screenshots] = await Promise.all([
-    prisma.teamMember.findMany({
-      where: { organizationId: context.organization.id, status: { not: "REMOVED" } },
-      include: { user: { select: { id: true, fullName: true, email: true, githubUsername: true } }, team: { select: { name: true } } },
-      orderBy: { createdAt: "desc" },
-      skip,
-      take: size,
-    }),
-    prisma.teamMember.count({
-      where: { organizationId: context.organization.id, status: { not: "REMOVED" } },
-    }),
-    prisma.timeEntry.findMany({
-      where: { organizationId: context.organization.id },
-      select: { userId: true, productiveSeconds: true, idleSeconds: true, totalSeconds: true, startedAt: true },
-      orderBy: { startedAt: "desc" },
-      take: 500, // Limit to recent 500 entries
-    }),
-    prisma.activityLog.findMany({
-      where: {
-        organizationId: context.organization.id,
-        capturedAt: { gte: subHours(new Date(), 24) },
-      },
-      select: { userId: true, capturedAt: true, idleSeconds: true },
-      orderBy: { capturedAt: "desc" },
-      take: 60,
-    }),
-    prisma.screenshot.findMany({
-      where: { organizationId: context.organization.id },
-      select: { id: true, user: { select: { fullName: true } }, activeApp: true, activeWindow: true, capturedAt: true },
-      orderBy: { capturedAt: "desc" },
-      distinct: ["userId"],
-      take: 50,
-    }),
-  ]);
-
-  const { totalTrackedHours, productiveMinutes, idleMinutes, productivityScore } = summarizeTimeEntries(timeEntries);
-  const lowActivityCount = activityLogs.filter((log) => log.idleSeconds > 15 * 60).length;
-
-  const memberStats = members
-    .map((member: any) => {
-      const employeeEntries = timeEntries.filter((entry) => entry.userId === member.userId);
-      const productive = employeeEntries.reduce((sum: number, entry) => sum + entry.productiveSeconds, 0);
-      const idle = employeeEntries.reduce((sum: number, entry) => sum + entry.idleSeconds, 0);
-      const score = productive + idle > 0 ? Math.round((productive / (productive + idle)) * 100) : 0;
-      return {
-        id: member.userId,
-        name: (member as any).user?.fullName ?? "",
-        team: (member as any).team?.name ?? "Unassigned",
-        githubUsername: (member as any).user?.githubUsername ?? "",
-        score,
-        consentStatus: member.consentStatus,
-      };
-    })
-    .sort((a: { score: number }, b: { score: number }) => b.score - a.score)
+  const membersResult = members || [];
+  const totalMembers = stats?.totalMembers || 0;
+  const totalPages = stats?.totalPages || 1;
+  const totalTrackedHours = stats?.totalTrackedHours || 0;
+  const productiveMinutes = stats?.productiveMinutes || 0;
+  const idleMinutes = stats?.idleMinutes || 0;
+  const productivityScore = stats?.productivityScore || 0;
+  const lowActivityCount = stats?.lowActivityCount || 0;
+  const screenshots = stats?.screenshots || [];
 
   return (
     <>
@@ -156,48 +195,69 @@ export default async function AdminActivityPage({ params, searchParams }: { para
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {memberStats.map((member: { id: string; name: string; team: string; githubUsername: string; score: number; consentStatus: string }) => (
-                  <TableRow key={member.id}>
-                    <TableCell className="font-medium">{member.name}</TableCell>
-                    <TableCell>{member.githubUsername ? `@${member.githubUsername}` : "-"}</TableCell>
-                    <TableCell>{member.team}</TableCell>
-                    <TableCell>{member.score}%</TableCell>
-                    <TableCell>
-                      <Badge variant={member.consentStatus === "ACCEPTED" ? "success" : "warning"}>{member.consentStatus}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/admin/activity/${member.id}`}>View</Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                  {/* Pagination */}
+                {membersLoading && membersResult.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-4">
-                      <div className="flex justify-center items-center gap-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={page <= 1}
-                          onClick={() => window.location.search = `?page=${page - 1}&size=${size}`}
-                        >
-                          Previous
-                        </Button>
-                        <span className="text-sm text-muted-foreground">
-                          Page {page} of {Math.ceil(totalMembers / size) || 1}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={page >= Math.ceil(totalMembers / size)}
-                          onClick={() => window.location.search = `?page=${page + 1}&size=${size}`}
-                        >
-                          Next
-                        </Button>
-                      </div>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
                     </TableCell>
                   </TableRow>
+                ) : membersError ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-destructive">
+                      Failed to load employees. <Button variant="outline" size="sm" onClick={refetchMembers}>Retry</Button>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  <>
+                    {membersResult.map((member: Member) => (
+                      <TableRow key={member.id}>
+                        <TableCell className="font-medium">{member.name}</TableCell>
+                        <TableCell>{member.githubUsername ? `@${member.githubUsername}` : "-"}</TableCell>
+                        <TableCell>{member.team}</TableCell>
+                        <TableCell>{member.score}%</TableCell>
+                        <TableCell>
+                          <Badge variant={member.consentStatus === "ACCEPTED" ? "success" : "warning"}>{member.consentStatus}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button asChild variant="outline" size="sm">
+                            <Link href={`/admin/activity/${member.id}`}>View</Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {membersResult.length === 0 && !membersLoading && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No employees found</TableCell>
+                      </TableRow>
+                    )}
+                    {/* Pagination */}
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-4">
+                        <div className="flex justify-center items-center gap-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={page <= 1}
+                            onClick={() => handlePageChange(page - 1)}
+                          >
+                            Previous
+                          </Button>
+                          <span className="text-sm text-muted-foreground">
+                            Page {page} of {totalPages || 1}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={page >= totalPages}
+                            onClick={() => handlePageChange(page + 1)}
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </>
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -208,7 +268,7 @@ export default async function AdminActivityPage({ params, searchParams }: { para
           </CardHeader>
           <CardContent>
             <div className="max-h-[400px] overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
-              {screenshots.map((shot: any) => (
+              {screenshots.map((shot: Screenshot) => (
                 <div key={shot.id} className="rounded-2xl border border-border bg-muted/30 p-4">
                   <p className="font-medium">{shot.user.fullName}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
